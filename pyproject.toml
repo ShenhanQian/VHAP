@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build]
+include = ["vhap/**/*.py"]
+
+[project]
+name = "VHAP"
+version = "0.0.1"
+requires-python = ">=3.9"
+dependencies = [
+  "tyro",
+    "pyyaml",
+    "numpy==1.22.3",
+    "matplotlib==3.8.0",
+    "scipy",
+    "pillow",
+    "opencv-python",
+    "ffmpeg-python",
+    "torch",  # manually install to avoid CUDA version mismatch
+    "torchvision",  # manually install to avoid CUDA version mismatch
+    "tensorboard",
+    "chumpy",
+    "trimesh",
+    "nvdiffrast@git+https://github.com/ShenhanQian/nvdiffrast@backface-culling",
+    "BackgroundMattingV2@git+https://github.com/ShenhanQian/BackgroundMattingV2",
+    "STAR@git+https://github.com/ShenhanQian/STAR/",
+    "dlib",  # for STAR
+    "pandas",  # for STAR
+    "gdown",  # for STAR
+    "face-alignment",
+    "face-detection-tflite",  # for face-alignment
+    "pytorch3d@git+https://github.com/facebookresearch/pytorch3d.git",
+]
+authors = [
+  {name = "Shenhan Qian", email = "shenhan.qian@tum.de"},
+]
+
+description = "A complete head tracking pipeline from videos to NeRF-ready datasets."
+readme = "README.md"
