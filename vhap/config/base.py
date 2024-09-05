@@ -53,7 +53,7 @@ class DataConfig(Config):
     background_color: Optional[Literal['white', 'black']] = 'white'
     use_alpha_map: bool = False
     use_landmark: bool = True
-    landmark_source: Optional[Literal["face-alignment", 'star']] = "star"
+    landmark_source: Optional[Literal['face-alignment', 'star', 'both']] = "star"
 
 
 @dataclass()
@@ -122,7 +122,7 @@ class LearningRateConfig(Config):
 
 @dataclass()
 class LossWeightConfig(Config):
-    landmark: Optional[float] = 3.  # should not be lower to avoid collapse
+    landmark: Optional[float] = 3.
     always_enable_jawline_landmarks: bool = True
     """Always enable the landmark loss for the jawline landmarks. Ignore disable_jawline_landmarks in stages."""
 

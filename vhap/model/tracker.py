@@ -748,13 +748,16 @@ class FlameTracker:
         # Joints should are regularized towards neural
         E_joint_prior = 0
         for name, pose in poses:
+            # L2 regularization for each joint
             rotmats = batch_rodrigues(torch.cat([torch.zeros_like(pose), pose], dim=0))
             diff = ((rotmats[[0]] - rotmats[1:]) ** 2).mean()
 
+            # Additional regularization for physical plausibility
             if name == 'jaw':
-                # penalize negative rotation along x axis of jaw for physical plausibility
+                # penalize negative rotation along x axis of jaw 
                 diff += F.relu(-pose[:, 0]).mean() * 10
             elif name == 'eyes':
+                # penalize the difference between the two eyes
                 diff += ((self.eyes_pose[[frame_idx], :3] - self.eyes_pose[[frame_idx], 3:]) ** 2).mean()
 
             E_joint_prior += diff * self.cfg.w[f"prior_{name}"]
@@ -1359,29 +1362,28 @@ class GlobalTracker(FlameTracker):
         dataset = import_module(cfg.data._target)(
             cfg=cfg_data,
         )
-
-        if cfg.data.landmark_source == 'face-alignment':
+        assert cfg.data.landmark_source in ['face-alignment', 'star', 'both'], \
+            f"Unknown landmark source: {cfg.data.landmark_source}"
+        if cfg.data.landmark_source in ['face-alignment', 'both']:
             from vhap.util.landmark_detector_fa import LandmarkDetectorFA
 
-            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment", 0).exists():
+            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment").exists():
                 # LandmarkDetector only supports a batch_size of 1
                 dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
                 os.umask(0o002)
                 detector = LandmarkDetectorFA()
                 detector.annotate_landmarks(dataloader, add_iris=False)
-        elif cfg.data.landmark_source == 'star':
+        if cfg.data.landmark_source in ['star', 'both']:
             from vhap.util.landmark_detector_star import LandmarkDetectorSTAR
             
-            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR", 0).exists():
+            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR").exists():
                 # LandmarkDetector only supports a batch_size of 1
                 dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
                 os.umask(0o002)
                 detector = LandmarkDetectorSTAR()
                 detector.annotate_landmarks(dataloader)
-        else:
-            raise NotImplementedError(f"Unknown landmark source: {cfg.data.landmark_source}")
     
     def init_params(self):
         train_tensors = []

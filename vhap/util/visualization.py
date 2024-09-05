@@ -93,28 +93,31 @@ if __name__ == "__main__":
         rgb = item["rgb"][0].permute(2, 0, 1)
         vis = rgb
 
-        bbox = item["bbox_2d"][0][:4]
-        tmp = draw_bounding_boxes(vis, bbox[None, ...], width=5 * unit)
-        vis = blend(tmp, vis, args.blend_weight)
+        if "bbox_2d" in item:
+            bbox = item["bbox_2d"][0][:4]
+            tmp = draw_bounding_boxes(vis, bbox[None, ...], width=5 * unit)
+            vis = blend(tmp, vis, args.blend_weight)
 
-        face_landmark = item["lmk2d"][0][:, :2]
-        tmp = plot_landmarks_2d(
-            vis,
-            face_landmark[None, ...],
-            connectivity=connectivity_face,
-            colors="white",
-            unit=unit,
-        )
-        vis = blend(tmp, vis, args.blend_weight)
+        if "lmk2d" in item:
+            face_landmark = item["lmk2d"][0][:, :2]
+            tmp = plot_landmarks_2d(
+                vis,
+                face_landmark[None, ...],
+                connectivity=connectivity_face,
+                colors="white",
+                unit=unit,
+            )
+            vis = blend(tmp, vis, args.blend_weight)
 
-        iris_landmark = item["lmk2d_iris"][0][:, :2]
-        tmp = plot_landmarks_2d(
-            vis,
-            iris_landmark[None, ...],
-            colors="blue",
-            unit=unit,
-        )
-        vis = blend(tmp, vis, args.blend_weight)
+        if "lmk2d_iris" in item:
+            iris_landmark = item["lmk2d_iris"][0][:, :2]
+            tmp = plot_landmarks_2d(
+                vis,
+                iris_landmark[None, ...],
+                colors="blue",
+                unit=unit,
+            )
+            vis = blend(tmp, vis, args.blend_weight)
 
         vis = vis.permute(1, 2, 0).numpy()
         plt.imshow(vis)

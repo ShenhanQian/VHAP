@@ -24,6 +24,7 @@ class NersembleDataConfig(DataConfig):
     _target: str = "vhap.data.nersemble_dataset.NeRSembleDataset"
     calibrated: bool = True
     background_color: Optional[Literal['white', 'black']] = None
+    landmark_source: Optional[Literal["face-alignment", 'star', 'both']] = "star"
 
     subject: str = ""
     """Subject ID. Such as 018, 218, 251, 253"""
@@ -32,6 +33,7 @@ class NersembleDataConfig(DataConfig):
 
 @dataclass()
 class NersembleLossWeightConfig(LossWeightConfig):
+    landmark: Optional[float] = 3.  # should not be lower to avoid collapse
     always_enable_jawline_landmarks: bool = False  # allow disable_jawline_landmarks in StageConfig to work
     reg_tex_tv: Optional[float] = 1e5  # 10x of the base value
 

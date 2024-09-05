@@ -281,7 +281,7 @@ class LandmarkDetectorFA:
                 if len(v) > 0:
                     lmk_dict[k] = np.concatenate(v, axis=0)
             out_path = dataloader.dataset.get_property_path(
-                "face-alignment", camera_id=camera_id
+                "landmark2d/face-alignment", camera_id=camera_id
             )
             logger.info(f"Saving landmarks to: {out_path}")
             if not out_path.parent.exists():

@@ -86,6 +86,7 @@ python vhap/preprocess_video.py \
 ```
 
 - `--matting_method robust_video_matting`: Use RobustVideoMatting due to lack of a background image.
+- (Optional) `--downsample_scales 2`: Generate downsampled versions of images in a scale such as 2. (Image size lower than 1024 is preferred for efficiency.)
 
 ### Align and track faces
 
@@ -113,9 +114,12 @@ TRACK_OUTPUT_FOLDER="output/${SEQUENCE}_whiteBg_staticOffset"
 python vhap/track.py --data.root_folder "data/monocular" \
 --exp.output_folder $TRACK_OUTPUT_FOLDER \
 --data.sequence $SEQUENCE \
+# --data.n_downsample_rgb 2  # Only specify this if you have generate downsampled images during preprocessing.
 ```
 
 Optional arguments
+
+- `--data.landmark_source both`: combine the best landmarks from STAR and Face-Alignment (takes longer for landmark estimation). STAR predicts very accurate landmarks for the mouth and eyes. Face-Alignment makes stable predictions for jawlines, noses, and eyebrows.
 
 - `--model.no_use_static_offset`: disable static offset for FLAME (very stable, but less aligned facial geometry)
 
