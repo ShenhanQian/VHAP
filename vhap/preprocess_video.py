@@ -157,7 +157,8 @@ def main(
         print(f'Processing video file: {input}')
         videos = [input]
         image_dir = input.parent / input.stem / 'images'
-    else:
+    elif input.is_dir():
+        # if input is a directory, assume all contained videos are synchronized multiview of the same scene
         if not input.exists():
             matched_folders = list(input.parent.glob(f"{input.name}*"))
             if len(matched_folders) == 0:
@@ -169,6 +170,8 @@ def main(
         print(f'Processing directory: {input}')
         videos = list(input.glob('cam_*.mp4'))
         image_dir = input / 'images'
+    else:
+        raise ValueError(f"Input should be a video file or a directory containing video files: {input}")
 
     # extract frames
     for i, video_path in enumerate(videos):

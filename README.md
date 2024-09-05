@@ -58,10 +58,16 @@ Our code relies on FLAME. Downloaded asset from https://flame.is.tue.mpg.de/down
 
 ### Preprocess
 
-NeRSemble dataset
+This step extracts frames from video(s), then run foreground matting for each frame, which requires GPU.
+
+#### NeRSemble dataset
 
 ```shell
-python vhap/preprocess_video.py \--input <path-to-video-or-folder-containing-multiview-videos> \
+SUBJECT="074"
+SEQUENCE="EMO-1"
+
+python vhap/preprocess_video.py \
+--input data/nersemble/${SUBJECT}/${SEQUENCE} \
 --downsample_scales 2 4 \
 --matting_method background_matting_v2
 ```
@@ -69,11 +75,13 @@ python vhap/preprocess_video.py \--input <path-to-video-or-folder-containing-mul
 - `--downsample_scales 2 4`: Generate downsampled versions of the images in scale 2 and 4.
 - `--matting_method background_matting_v2`: Use BackGroundMatingV2 due to availability of background images.
 
-Monocular videos
+#### Monocular videos
 
 ```shell
+SEQUENCE="obama.mp4"
+
 python vhap/preprocess_video.py \
---input <path-to-video-or-folder-containing-multiview-videos> \
+--input data/monocular/${SEQUENCE} \
 --matting_method robust_video_matting
 ```
 
@@ -81,7 +89,9 @@ python vhap/preprocess_video.py \
 
 ### Align and track faces
 
-NeRSemble dataset
+This step automatically detects facial landmarks if absent, then begin FLAME tracking. We initialize shape and appearance parameters on the first frame, then do a sequential tracking of following frames. After the sequence tracking, we conduct 30 epochs of global tracking, which optimize all the parameters on a random frame in each iteration.
+
+#### NeRSemble dataset
 
 ```shell
 SUBJECT="074"
@@ -94,7 +104,7 @@ python vhap/track_nersemble.py --data.root_folder "data/nersemble" \
 --data.n_downsample_rgb 4
 ```
 
-Monocular videos
+#### Monocular videos
 
 ```shell
 SEQUENCE="bala"
@@ -108,12 +118,16 @@ python vhap/track.py --data.root_folder "data/monocular" \
 Optional arguments
 
 - `--model.no_use_static_offset`: disable static offset for FLAME (very stable, but less aligned facial geometry)
+
+  > Disabling static offset will automatically triggers `--model.occluded hair`, which is crucial to prevent the head from growing too larger to align with the top of hair.
+
 - `--exp.no_photometric`: track only with landmark (very fast, but coarse)
-  - Disabling static offset will automatically triggers `--model.occluded hair`, which is crucial to prevent the head from growing too larger to align with the top of hair.
 
 ### Export tracking results into a NeRF-style dataset
 
-NeRSemble dataset
+Given the tracked FLAME parameters from the above step, you can export the results to form a NeRF/3DGS style sequence, consisting of image folders and a `transforms.json`.
+
+#### NeRSemble dataset
 
 ```shell
 SUBJECT="074"
@@ -126,7 +140,7 @@ python vhap/export_as_nerf_dataset.py \
 --tgt_folder ${EXPORT_OUTPUT_FOLDER} --background-color white
 ```
 
-Monocular videos
+#### Monocular videos
 
 ```shell
 SEQUENCE="bala"
