@@ -19,7 +19,16 @@ def video2frames(video_path: Path, image_dir: Path, keep_video_name: bool=False,
     file_path_stem = video_path.stem + '_' if keep_video_name else ''
 
     probe = ffmpeg.probe(str(video_path))
+    
     video_fps = int(probe['streams'][0]['r_frame_rate'].split('/')[0])
+    if  video_fps ==0:
+        video_fps = int(probe['streams'][0]['avg_frame_rate'].split('/')[0])
+        if video_fps == 0:
+            # nb_frames / duration
+            video_fps = int(probe['streams'][0]['nb_frames']) / float(probe['streams'][0]['duration'])
+            if video_fps == 0:
+                raise ValueError('Cannot get valid video fps')
+
     num_frames = int(probe['streams'][0]['nb_frames'])
     video = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
     W = int(video['width'])
