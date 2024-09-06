@@ -52,16 +52,29 @@ pip install -e .
 
 ## Download
 
-Our code relies on FLAME. Downloaded asset from https://flame.is.tue.mpg.de/download.php and store them in below paths:
+### FLAME
+
+Our code relies on FLAME. Downloaded asset from the [official website](https://flame.is.tue.mpg.de/download.php) and store them in the paths below:
 
 - `asset/flame/flame2023.pkl`  # FLAME 2023 (versions w/ jaw rotation)
 - `asset/flame/FLAME_masks.pkl`  # FLAME Vertex Masks
 
-> It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
+> NOTE: It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
+
+### Video Data
+
+#### Multiview
+
+- To use [NeRSemble](https://tobias-kirschstein.github.io/nersemble/) dataset, please request via [Google Form](https://forms.gle/rYRoGNh2ed51TDWX9) to get approval and download links. You can find expected directory structure [here](https://github.com/ShenhanQian/VHAP/blob/c9ea660c6c6719110eca5ffdaf9029a2596cc5ca/vhap/data/nersemble_dataset.py#L32-L54).
+
+#### Monocular
+
+- We collect monocular video sequences from [INSTA](https://zielon.github.io/insta/). You can download raw videos from [LRZ](https://syncandshare.lrz.de/getlink/fiJE46wKrG6oTVZ16CUmMr/VHAP).
+
 
 ## Usage
 
-### Preprocess
+### 1. Preprocess
 
 This step extracts frames from video(s), then run foreground matting for each frame, which requires GPU.
 
@@ -93,7 +106,7 @@ python vhap/preprocess_video.py \
 - `--matting_method robust_video_matting`: Use RobustVideoMatting due to lack of a background image.
 - (Optional) `--downsample_scales 2`: Generate downsampled versions of images in a scale such as 2. (Image size lower than 1024 is preferred for efficiency.)
 
-### Align and track faces
+### 2. Align and track faces
 
 This step automatically detects facial landmarks if absent, then begin FLAME tracking. We initialize shape and appearance parameters on the first frame, then do a sequential tracking of following frames. After the sequence tracking, we conduct 30 epochs of global tracking, which optimize all the parameters on a random frame in each iteration.
 
@@ -132,7 +145,7 @@ Optional arguments
 
 - `--exp.no_photometric`: track only with landmark (very fast, but coarse)
 
-### Export tracking results into a NeRF-style dataset
+### 3. Export tracking results into a NeRF-style dataset
 
 Given the tracked FLAME parameters from the above step, you can export the results to form a NeRF/3DGS style sequence, consisting of image folders and a `transforms.json`.
 
@@ -161,7 +174,7 @@ python vhap/export_as_nerf_dataset.py \
 --tgt_folder ${EXPORT_OUTPUT_FOLDER} --background-color white
 ```
 
-### Combine exported sequences as a union dataset (for the same person)
+### 4. Combine exported sequences of the same person as a union dataset
 
 #### NeRSemble dataset
 
