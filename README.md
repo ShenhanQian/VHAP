@@ -1,5 +1,10 @@
 # Versatile Head Alignment with Adaptive Appearance Priors
 
+
+<div align="center"> 
+<img src="asset/teaser.gif">
+</div>
+
 ## TL;DR
 
 - A photometric optimization pipeline based on differentiable rasterization, applied to human head alignment.
