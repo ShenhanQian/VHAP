@@ -102,7 +102,7 @@ This step automatically detects facial landmarks if absent, then begin FLAME tra
 ```shell
 SUBJECT="074"
 SEQUENCE="EMO-1"
-TRACK_OUTPUT_FOLDER="output/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
+TRACK_OUTPUT_FOLDER="output/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
 
 python vhap/track_nersemble.py --data.root_folder "data/nersemble" \
 --exp.output_folder $TRACK_OUTPUT_FOLDER \
@@ -113,8 +113,8 @@ python vhap/track_nersemble.py --data.root_folder "data/nersemble" \
 #### Monocular videos
 
 ```shell
-SEQUENCE="bala"
-TRACK_OUTPUT_FOLDER="output/${SEQUENCE}_whiteBg_staticOffset"
+SEQUENCE="obama"
+TRACK_OUTPUT_FOLDER="output/monocular/${SEQUENCE}_whiteBg_staticOffset"
 
 python vhap/track.py --data.root_folder "data/monocular" \
 --exp.output_folder $TRACK_OUTPUT_FOLDER \
@@ -141,8 +141,8 @@ Given the tracked FLAME parameters from the above step, you can export the resul
 ```shell
 SUBJECT="074"
 SEQUENCE="EMO-1"
-TRACK_OUTPUT_FOLDER="output/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
-EXPORT_OUTPUT_FOLDER="export/${SUBJECT}_${SEQUENCE}_v16_DS4_whiteBg_staticOffset_maskBelowLine"
+TRACK_OUTPUT_FOLDER="output/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
+EXPORT_OUTPUT_FOLDER="export/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_whiteBg_staticOffset_maskBelowLine"
 
 python vhap/export_as_nerf_dataset.py \
 --src_folder ${TRACK_OUTPUT_FOLDER} \
@@ -152,9 +152,9 @@ python vhap/export_as_nerf_dataset.py \
 #### Monocular videos
 
 ```shell
-SEQUENCE="bala"
-TRACK_OUTPUT_FOLDER="output/${SEQUENCE}_whiteBg_staticOffset"
-EXPORT_OUTPUT_FOLDER="export/${SEQUENCE}_whiteBg_staticOffset_maskBelowLine"
+SEQUENCE="obama"
+TRACK_OUTPUT_FOLDER="output/monocular/${SEQUENCE}_whiteBg_staticOffset"
+EXPORT_OUTPUT_FOLDER="export/monocular/${SEQUENCE}_whiteBg_staticOffset_maskBelowLine"
 
 python vhap/export_as_nerf_dataset.py \
 --src_folder ${TRACK_OUTPUT_FOLDER} \
@@ -163,7 +163,28 @@ python vhap/export_as_nerf_dataset.py \
 
 ### Combine exported sequences as a union dataset (for the same person)
 
-TODO
+#### NeRSemble dataset
+
+```shell
+SUBJECT="074"
+
+python vhap/combine_nerf_datasets.py \
+--src_folders \
+  export/nersemble/${SUBJECT}_EMO-1_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EMO-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EMO-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EMO-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-5_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-8_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble/${SUBJECT}_EXP-9_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+--tgt_folder \
+  export/nersemble/UNION10_${SUBJECT}_EMO1234EXP234589_v16_DS4_whiteBg_staticOffset_maskBelowLine
+```
+
+> Note: the `tgt_folder` must be in the same parent folder as `src_folders` because the union dataset read from the original image files by relative paths.
 
 ## Cite
 
