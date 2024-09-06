@@ -122,14 +122,14 @@ class LearningRateConfig(Config):
 
 @dataclass()
 class LossWeightConfig(Config):
-    landmark: Optional[float] = 3.
+    landmark: Optional[float] = 10.
     always_enable_jawline_landmarks: bool = True
     """Always enable the landmark loss for the jawline landmarks. Ignore disable_jawline_landmarks in stages."""
 
     photo: Optional[float] = 30.
 
     reg_shape: float = 3e-1
-    reg_expr: float = 1e-2  # for best expressivness
+    reg_expr: float = 3e-2
     reg_tex_pca: float = 1e-4  # will make it hard to model hair color when too high
     
     reg_tex_res: Optional[float] = None  # 1e2 (when w/o reg_var)

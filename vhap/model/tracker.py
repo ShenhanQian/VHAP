@@ -451,6 +451,10 @@ class FlameTracker:
             diff = lmk2d[:, :68] - pred_lmk2d[:, :68]
             confidence = confidence[:, :68]
 
+            # increase weight for nose landmarks since they are usually robust
+            # https://ibug.doc.ic.ac.uk/media/uploads/images/300-w/figure_1_68.jpg
+            confidence[:, 27:36] *= 10
+
         # compute general landmark term
         lmk_loss = torch.norm(diff, dim=2, p=1) * confidence
 
@@ -756,6 +760,9 @@ class FlameTracker:
             if name == 'jaw':
                 # penalize negative rotation along x axis of jaw 
                 diff += F.relu(-pose[:, 0]).mean() * 10
+
+                # penalize rotation along y and z axis of jaw
+                diff += (pose[:, 1:] ** 2).mean() * 3
             elif name == 'eyes':
                 # penalize the difference between the two eyes
                 diff += ((self.eyes_pose[[frame_idx], :3] - self.eyes_pose[[frame_idx], 3:]) ** 2).mean()
