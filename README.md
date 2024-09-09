@@ -6,9 +6,9 @@
 
 ## TL;DR
 
-- A photometric optimization pipeline based on differentiable rasterization, applied to human head alignment.
-- A perturbation mechanism that implicitly extract and inject regional appearance priors adaptively during rendering.
-- Enabling alignment of regions purely based on their appearance consistency, such as the hair, ears, neck, and shoulders, where no pre-defined landmarks are available.
+- A photometric optimization pipeline based on differentiable mesh rasterization, applied to human head alignment.
+- A perturbation mechanism that implicitly extract and inject regional appearance priors adaptively during rendering, enabling alignment of regions purely based on their appearance consistency, such as the hair, ears, neck, and shoulders, where no pre-defined landmarks are available.
+- The exported tracking results can be directly used to create you own [GaussianAvatars](https://github.com/ShenhanQian/GaussianAvatars).
 
 ## License
 
@@ -21,6 +21,9 @@ On top of the original repository, we add support to monocular videos and provid
 ## Setup
 
 ```shell
+git clone git@github.com:ShenhanQian/VHAP.git
+cd VHAP
+
 conda create --name VHAP -y python=3.10
 conda activate VHAP
 
@@ -38,16 +41,15 @@ conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -e .
 ```
 
-## Note
-
-- We use an adjusted version of [nvdiffrast](https://github.com/ShenhanQian/nvdiffrast/tree/backface-culling) for backface-culling. To completely remove previous versions and compiled pytorch extensions, you can execute
-
-  ```shell
-  pip uninstall nvdiffrast
-  rm -r ~/.cache/torch_extensions/*/nvdiffrast*
-  ```
-
-- We use [STAR](https://github.com/ShenhanQian/STAR/) for landmark detection by default. Alterntively, [face-alignment](https://github.com/1adrianb/face-alignment) is faster but less accurate.
+> **NOTE:**
+> - We use an adjusted version of [nvdiffrast](https://github.com/ShenhanQian/nvdiffrast/tree/backface-culling) for backface-culling. To completely remove previous versions and compiled pytorch extensions, you can execute
+>
+>   ```shell
+>   pip uninstall nvdiffrast
+>   rm -r ~/.cache/torch_extensions/*/nvdiffrast*
+>   ```
+>
+> - We use [STAR](https://github.com/ShenhanQian/STAR/) for landmark detection by default. Alterntively, [face-alignment](https://github.com/1adrianb/face-alignment) is faster but less accurate.
 
 ## Download
 
@@ -58,7 +60,7 @@ Our code relies on FLAME. Downloaded asset from the [official website](https://f
 - `asset/flame/flame2023.pkl`  # FLAME 2023 (versions w/ jaw rotation)
 - `asset/flame/FLAME_masks.pkl`  # FLAME Vertex Masks
 
-> NOTE: It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
+> **NOTE:** It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
 
 ### Video Data
 
@@ -75,13 +77,13 @@ Our code relies on FLAME. Downloaded asset from the [official website](https://f
 ### [For Monocular Videos](doc/monocular.md)
 
 <div align="center"> 
-  <img src="asset/monocular.jpg">
+  <img src="asset/monocular_person_0004.gif" width=100%>
 </div>
 
 ### [For NeRSemble Dataset](doc/nersemble.md)
 
 <div align="center"> 
-  <img src="asset/nersemble.jpg">
+  <img src="asset/nersemble_038_EMO-1.gif" width=100%>
 </div>
 
 ## Cite

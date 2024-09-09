@@ -1,7 +1,7 @@
 ## For Monocular Videos
 
 <div align="center"> 
-  <img src="../asset/monocular.jpg">
+  <img src="../asset/monocular_obama.gif" width=100%>
 </div>
 
 ### 1. Preprocess

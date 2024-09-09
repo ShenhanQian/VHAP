@@ -1,7 +1,7 @@
 ## For NeRSemble Dataset
 
 <div align="center"> 
-  <img src="../asset/nersemble.jpg">
+  <img src="../asset/nersemble_074_EMO-1.gif" width=100%>
 </div>
 
 ### 1. Preprocess
@@ -46,6 +46,8 @@ Optional arguments
 
 - `--exp.no_photometric`: track only with landmark (very fast, but coarse)
 
+> **NOTE**: We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
+
 ### 3. Export tracking results into a NeRF-style dataset
 
 Given the tracked FLAME parameters from the above step, you can export the results to form a NeRF/3DGS style sequence, consisting of image folders and a `transforms.json`.
@@ -82,4 +84,4 @@ python vhap/combine_nerf_datasets.py \
   export/nersemble/UNION10_${SUBJECT}_EMO1234EXP234589_v16_DS4_whiteBg_staticOffset_maskBelowLine
 ```
 
-> Note: the `tgt_folder` must be in the same parent folder as `src_folders` because the union dataset read from the original image files by relative paths.
+> **NOTE**: The `tgt_folder` must be in the same parent folder as `src_folders` because the union dataset read from the original image files by relative paths.
