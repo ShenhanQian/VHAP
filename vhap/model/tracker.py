@@ -1369,28 +1369,28 @@ class GlobalTracker(FlameTracker):
         dataset = import_module(cfg.data._target)(
             cfg=cfg_data,
         )
-        assert cfg.data.landmark_source in ['face-alignment', 'star', 'both'], \
-            f"Unknown landmark source: {cfg.data.landmark_source}"
-        if cfg.data.landmark_source in ['face-alignment', 'both']:
+        if cfg.data.landmark_source == 'face-alignment':
             from vhap.util.landmark_detector_fa import LandmarkDetectorFA
 
-            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment").exists():
+            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment", -1).exists():
                 # LandmarkDetector only supports a batch_size of 1
                 dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
                 os.umask(0o002)
                 detector = LandmarkDetectorFA()
                 detector.annotate_landmarks(dataloader, add_iris=False)
-        if cfg.data.landmark_source in ['star', 'both']:
+        elif cfg.data.landmark_source == 'star':
             from vhap.util.landmark_detector_star import LandmarkDetectorSTAR
             
-            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR").exists():
+            if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR", -1).exists():
                 # LandmarkDetector only supports a batch_size of 1
                 dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
                 os.umask(0o002)
                 detector = LandmarkDetectorSTAR()
                 detector.annotate_landmarks(dataloader)
+        else:
+            raise ValueError(f"Unknown landmark source: {cfg.data.landmark_source}")
     
     def init_params(self):
         train_tensors = []

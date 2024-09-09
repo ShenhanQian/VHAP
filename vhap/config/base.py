@@ -53,7 +53,7 @@ class DataConfig(Config):
     background_color: Optional[Literal['white', 'black']] = 'white'
     use_alpha_map: bool = False
     use_landmark: bool = True
-    landmark_source: Optional[Literal['face-alignment', 'star', 'both']] = "star"
+    landmark_source: Optional[Literal['face-alignment', 'star']] = "star"
 
 
 @dataclass()

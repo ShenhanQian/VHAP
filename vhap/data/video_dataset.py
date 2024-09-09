@@ -55,7 +55,6 @@ class VideoDataset(Dataset):
 
         self.define_properties()
         self.load_camera_params()
-        self.load_landmarks()
 
         # timesteps
         self.timestep_ids = set(
@@ -195,36 +194,6 @@ class VideoDataset(Dataset):
 
         return self.camera_params
 
-    def load_landmarks(self):
-        if self.cfg.use_landmark:
-            assert self.cfg.landmark_source in ["face-alignment", "star", "both"], \
-                f"Unknown landmark source: {self.cfg.landmark_source}"
-
-            self.landmarks = {}
-            if self.cfg.landmark_source == "face-alignment":
-                npz = np.load(self.get_property_path("landmark2d/face-alignment"))
-                self.landmarks = torch.from_numpy(npz["face_landmark_2d"])
-            
-            if self.cfg.landmark_source == "star": 
-                npz = np.load(self.get_property_path("landmark2d/STAR"))
-                self.landmarks = torch.from_numpy(npz["face_landmark_2d"])
-
-            if self.cfg.landmark_source == "both": 
-                npz_fa = np.load(self.get_property_path("landmark2d/face-alignment"))
-                landmarks_fa = npz_fa["face_landmark_2d"]
-
-                npz_star = np.load(self.get_property_path("landmark2d/STAR"))
-                landmarks_star = npz_star["face_landmark_2d"]
-
-                # merge landmarks
-                self.landmarks = np.zeros_like(landmarks_star)
-
-                self.landmarks[:, 0:36, :] = landmarks_fa[:, 0:36, :]  # jawline, eyebrows, nose
-                self.landmarks[:, 36:, :] = landmarks_star[:, 36:, :]  # eyes, mouth
-                # reference of landmark IDs: https://ibug.doc.ic.ac.uk/media/uploads/images/300-w/figure_1_68.jpg
-
-                self.landmarks = torch.from_numpy(self.landmarks)
-            
     def __len__(self):
         if self.batchify_all_views:
             return self.num_timesteps
@@ -254,7 +223,15 @@ class VideoDataset(Dataset):
         if self.cfg.use_landmark:
             timestep_index = self.items[i]["timestep_index"]
 
-            item["lmk2d"] = self.landmarks[timestep_index].clone()  # (num_points, 3)
+            if self.cfg.landmark_source == "face-alignment":
+                landmark_path = self.get_property_path("landmark2d/face-alignment", i)
+            elif self.cfg.landmark_source == "star": 
+                landmark_path = self.get_property_path("landmark2d/STAR", i)
+            else:
+                raise NotImplementedError(f"Unknown landmark source: {self.cfg.landmark_source}")
+            landmark_npz = np.load(landmark_path)
+
+            item["lmk2d"] = landmark_npz["face_landmark_2d"][timestep_index]  # (num_points, 3)
             if (item["lmk2d"][:, :2] == -1).sum() > 0:
                 item["lmk2d"][:, 2:] = 0.0
             else:

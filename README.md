@@ -137,8 +137,6 @@ python vhap/track.py --data.root_folder "data/monocular" \
 
 Optional arguments
 
-- `--data.landmark_source both`: combine the best landmarks from STAR and Face-Alignment (takes longer for landmark estimation). STAR predicts very accurate landmarks for the mouth and eyes. Face-Alignment makes stable predictions for jawlines, noses, and eyebrows.
-
 - `--model.no_use_static_offset`: disable static offset for FLAME (very stable, but less aligned facial geometry)
 
   > Disabling static offset will automatically triggers `--model.occluded hair`, which is crucial to prevent the head from growing too larger to align with the top of hair.

@@ -24,7 +24,7 @@ class NersembleDataConfig(DataConfig):
     _target: str = "vhap.data.nersemble_dataset.NeRSembleDataset"
     calibrated: bool = True
     background_color: Optional[Literal['white', 'black']] = None
-    landmark_source: Optional[Literal["face-alignment", 'star', 'both']] = "star"
+    landmark_source: Optional[Literal["face-alignment", 'star']] = "star"
 
     subject: str = ""
     """Subject ID. Such as 018, 218, 251, 253"""
