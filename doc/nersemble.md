@@ -21,6 +21,8 @@ python vhap/preprocess_video.py \
 - `--downsample_scales 2 4`: Generate downsampled versions of the images in scale 2 and 4.
 - `--matting_method background_matting_v2`: Use BackGroundMatingV2 due to availability of background images.
 
+After preprocessing, you can inspect images, masks, and landmarks with our [NeRSemble Data Viewer](https://github.com/ShenhanQian/nersemble-data-viewer).
+
 ### 2. Align and track faces
 
 This step automatically detects facial landmarks if absent, then begin FLAME tracking. We initialize shape and appearance parameters on the first frame, then do a sequential tracking of following frames. After the sequence tracking, we conduct 30 epochs of global tracking, which optimize all the parameters on a random frame in each iteration.
