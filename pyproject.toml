@@ -35,6 +35,7 @@ dependencies = [
     "face-alignment",
     "face-detection-tflite",  # for face-alignment
     "pytorch3d@git+https://github.com/facebookresearch/pytorch3d.git",
+    "dearpygui",
 ]
 authors = [
   {name = "Shenhan Qian", email = "shenhan.qian@tum.de"},

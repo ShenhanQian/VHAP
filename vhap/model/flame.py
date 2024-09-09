@@ -500,6 +500,7 @@ class FlameHead(nn.Module):
         self.faces = torch.cat([self.faces, f_teeth_upper+num_verts_orig, f_teeth_lower+num_verts_orig], dim=0)
         self.textures_idx = torch.cat([self.textures_idx, f_teeth_upper+num_verts_uv_orig, f_teeth_lower+num_verts_uv_orig], dim=0)
 
+        self.mask.num_verts = self.v_template.shape[0]
         self.mask.update(self.faces, self.textures_idx)
 
     

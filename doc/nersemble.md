@@ -46,7 +46,7 @@ Optional arguments
 
 - `--exp.no_photometric`: track only with landmark (very fast, but coarse)
 
-> **NOTE**: We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
+> **NOTE:** We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
 
 ### 3. Export tracking results into a NeRF-style dataset
 
