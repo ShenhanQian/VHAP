@@ -107,7 +107,7 @@ def background_matting_v2(
     weights_path = get_weights_path(model_backbone)
 
     model = model.cuda().eval()
-    model.load_state_dict(torch.load(weights_path, map_location='cuda'), strict=False)
+    model.load_state_dict(torch.load(weights_path, map_location='cuda', weights_only=True))
 
     dataset = ImageFolderDataset(
         image_folder=image_dir, 
@@ -152,6 +152,15 @@ def main(
         matting_method: Optional[Literal['robust_video_matting', 'background_matting_v2']]=None,
         background_folder: Path=Path('../../BACKGROUND'),
     ):
+    if not input.exists():
+        matched_paths = list(input.parent.glob(f"{input.name}*"))
+        if len(matched_paths) == 0:
+            raise FileNotFoundError(f"Cannot find the directory: {input}")
+        elif len(matched_paths) == 1:
+            input = matched_paths[0]
+        else:
+            raise FileNotFoundError(f"Found multiple matched folders: {matched_paths}")
+            
     # prepare path
     if input.suffix in ['.mov', '.mp4']:
         print(f'Processing video file: {input}')
@@ -159,14 +168,6 @@ def main(
         image_dir = input.parent / input.stem / 'images'
     elif input.is_dir():
         # if input is a directory, assume all contained videos are synchronized multiview of the same scene
-        if not input.exists():
-            matched_folders = list(input.parent.glob(f"{input.name}*"))
-            if len(matched_folders) == 0:
-                raise FileNotFoundError(f"Cannot find the directory: {input}")
-            elif len(matched_folders) == 1:
-                input = matched_folders[0]
-            else:
-                raise FileNotFoundError(f"Found multiple matched folders: {matched_folders}")
         print(f'Processing directory: {input}')
         videos = list(input.glob('cam_*.mp4'))
         image_dir = input / 'images'
@@ -175,7 +176,7 @@ def main(
 
     # extract frames
     for i, video_path in enumerate(videos):
-        print(f'[{i}/{len(videos)}] Processing video file: {video_path}')
+        print(f'\n[{i}/{len(videos)}] Processing video file: {video_path}')
 
         for n_downsample in [1] + downsample_scales:
             image_dir_ = image_dir if n_downsample == 1 else Path(str(image_dir) + f'_{n_downsample}')
