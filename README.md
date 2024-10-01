@@ -90,6 +90,8 @@ We use monocular video sequences following [INSTA](https://zielon.github.io/inst
 
 Photometric alignment is versatile but sometimes sensitive.
 
+**Texture map regularization**: Our method relies on a total-variation regularization on the texture map. Its loss weight is by default `1e4` for a monocualr video and `1e5` for the NeRSemble dataset (16 views). For you own multi-view dataset with fewer views, you should lower the regularization by passing `--w.reg_tex_tv 1e4` or 3e4. Otherwise, you may encounter corrupted shapes and blurry textures similar to https://github.com/ShenhanQian/VHAP/issues/10#issue-2558743737 and https://github.com/ShenhanQian/VHAP/issues/6#issue-2524833245.
+
 **Color affinity:** If the color of a point on the foreground contour is too close to the background, the [`static_offset`](https://github.com/ShenhanQian/VHAP/blob/64c18060e7aad104bf05a2c06aab7818f54af6bd/vhap/model/flame.py#L583) can go wild. You may try a different background color by `--data.background_color white` or `--data.background_color black`. You can also disable `static_offset` by `--model.no_use_static_offset`.
 
 **Occlussion:** When the neck is occluded by collars, the photometric gradients may squeeze and stretch the neck into unnatural shapes. Usually, this problem can be relieved by disabling photometric alignment in certain regions. We hard-coded the occlusion status for some subjects in the NeRSemble dataset with the [`occluded_table`](https://github.com/ShenhanQian/VHAP/blob/51a2792bd3ad3f920d9cd8f1b107a56b92349520/vhap/config/nersemble.py#L71). You can extend the table or temporally change it by, e.g., `--model.occluded neck_lower boundary`.
