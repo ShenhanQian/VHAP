@@ -46,7 +46,8 @@ Optional arguments
 
 - `--exp.no_photometric`: track only with landmark (very fast, but coarse)
 
-> **NOTE:** We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
+> [!NOTE]
+> We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
 
 ### 3. Export tracking results into a NeRF-style dataset
 
@@ -84,4 +85,5 @@ python vhap/combine_nerf_datasets.py \
   export/nersemble/UNION10_${SUBJECT}_EMO1234EXP234589_v16_DS4_whiteBg_staticOffset_maskBelowLine
 ```
 
-> **NOTE**: The `tgt_folder` must be in the same parent folder as `src_folders` because the union dataset read from the original image files by relative paths.
+> [!NOTE]
+> The `tgt_folder` must be in the same parent folder as `src_folders` because the union dataset read from the original image files by relative paths.

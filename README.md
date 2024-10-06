@@ -41,7 +41,7 @@ conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -e .
 ```
 
-> **NOTE:**
+> [!NOTE]
 > - We use an adjusted version of [nvdiffrast](https://github.com/ShenhanQian/nvdiffrast/tree/backface-culling) for backface-culling. To completely remove previous versions and compiled pytorch extensions, you can execute
 >
 >   ```shell
@@ -60,7 +60,8 @@ Our code relies on FLAME. Please download assets from the [official website](htt
 - FLAME 2023 (versions w/ jaw rotation) -> `asset/flame/flame2023.pkl`
 - FLAME Vertex Masks -> `asset/flame/FLAME_masks.pkl`
 
-> **NOTE:** It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
+> [!NOTE]
+> It is possible to use FLAME 2020 by download to `asset/flame/generic_model.pkl`. The `FLAME_MODEL_PATH` in `flame.py` needs to be updated accordingly.
 
 ### Video Data
 
