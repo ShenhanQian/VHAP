@@ -370,7 +370,7 @@ class MaskFromFLAME:
 
         self.flame_model = FlameHead(cfg_model.n_shape, cfg_model.n_expr, add_teeth=True)
 
-        self.mesh_renderer = NVDiffRenderer(use_opengl=True)
+        self.mesh_renderer = NVDiffRenderer(use_opengl=False)
 
     @torch.no_grad()
     def write(self):

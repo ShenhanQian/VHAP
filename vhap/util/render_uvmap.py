@@ -53,7 +53,7 @@ def render_uvmap_texmap(glctx, pos, pos_idx, verts_uv, faces_uv, tex, resolution
 
 def main(
     use_texmap: bool = False,
-    use_opengl: bool = True,
+    use_opengl: bool = False,
 ):
     n_shape = 300
     n_expr = 100

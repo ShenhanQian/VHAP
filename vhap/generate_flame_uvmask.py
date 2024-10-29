@@ -23,7 +23,7 @@ FLAME_UV_MASK_NPZ = "asset/flame/uv_masks.npz"
 
 
 def main(
-    use_opengl: bool = True,
+    use_opengl: bool = False,
     device: Literal['cuda', 'cpu'] = 'cuda',
 ):
     n_shape = 300

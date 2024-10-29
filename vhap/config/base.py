@@ -92,7 +92,7 @@ class ModelConfig(Config):
 class RenderConfig(Config):
     backend: Literal['nvdiffrast', 'pytorch3d'] = 'nvdiffrast'
     """The rendering backend"""
-    use_opengl: bool = True
+    use_opengl: bool = False
     """Use OpenGL for NVDiffRast"""
     background_train: Literal['white', 'black', 'target'] = 'target'
     """Background color/image for training"""

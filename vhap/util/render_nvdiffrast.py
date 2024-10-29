@@ -56,7 +56,7 @@ def get_SH_shading(normals, sh_coefficients, sh_const):
 class NVDiffRenderer(torch.nn.Module):
     def __init__(
             self,
-            use_opengl: bool = True, 
+            use_opengl: bool = False, 
             lighting_type: Literal['constant', 'front', 'front-range', 'SH'] = 'front',
             lighting_space: Literal['camera', 'world'] = 'world',
             disturb_rate_fg: Optional[float] = 0.5,

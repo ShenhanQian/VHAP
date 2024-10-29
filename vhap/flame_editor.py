@@ -29,7 +29,7 @@ class Config:
     """default GUI camera fovy"""
     background_color: tuple[float] = (1., 1., 1.)
     """default GUI background color"""
-    use_opengl: bool = True
+    use_opengl: bool = False
     """use OpenGL or CUDA rasterizer"""
 
 
@@ -64,7 +64,7 @@ class FlameViewer:
         self.drag_button = None
 
         # rendering settings
-        self.mesh_renderer = NVDiffRenderer(use_opengl=False, lighting_space='camera')
+        self.mesh_renderer = NVDiffRenderer(use_opengl=cfg.use_opengl, lighting_space='camera')
 
         self.define_gui()
 

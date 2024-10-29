@@ -42,13 +42,11 @@ pip install -e .
 ```
 
 > [!NOTE]
-> - We use an adjusted version of [nvdiffrast](https://github.com/ShenhanQian/nvdiffrast/tree/backface-culling) for backface-culling. To completely remove previous versions and compiled pytorch extensions, you can execute
->
->   ```shell
->   pip uninstall nvdiffrast
->   rm -r ~/.cache/torch_extensions/*/nvdiffrast*
->   ```
->
+> - We use an adjusted version of [nvdiffrast](https://github.com/ShenhanQian/nvdiffrast/tree/backface-culling) for backface-culling. If you have other versions installed before, you can reinstall as follows:
+>    ```shell
+>    pip install nvdiffrast@git+https://github.com/ShenhanQian/nvdiffrast@backface-culling --force-reinstall
+>    rm -r ~/.cache/torch_extensions/*/nvdiffrast*
+>    ```
 > - We use [STAR](https://github.com/ShenhanQian/STAR/) for landmark detection by default. Alterntively, [face-alignment](https://github.com/1adrianb/face-alignment) is faster but less accurate.
 
 ## Download
