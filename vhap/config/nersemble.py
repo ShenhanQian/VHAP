@@ -23,6 +23,8 @@ logger = get_logger(__name__)
 class NersembleDataConfig(DataConfig):
     _target: str = "vhap.data.nersemble_dataset.NeRSembleDataset"
     calibrated: bool = True
+    image_size_during_calibration: Optional[tuple[int, int]] = (3208, 2200)
+    """(height, width). Will be use to convert principle points when the image size is not included in the camera parameters."""
     background_color: Optional[Literal['white', 'black']] = None
     landmark_source: Optional[Literal["face-alignment", 'star']] = "star"
 

@@ -78,6 +78,12 @@ class NeRSembleDataset(VideoDataset):
 
         K = torch.Tensor(param["intrinsics"])
 
+        if "height" not in param or "width" not in param:
+            assert self.cfg.image_size_during_calibration is not None
+            H, W = self.cfg.image_size_during_calibration
+        else:
+            H, W = param["height"], param["width"]
+
         self.camera_ids =  list(param["world_2_cam"].keys())
         w2c = torch.tensor([param["world_2_cam"][k] for k in self.camera_ids])  # (N, 4, 4)
         R = w2c[..., :3, :3]
@@ -93,9 +99,9 @@ class NeRSembleDataset(VideoDataset):
             )
 
         # modify the local orientation of cameras to fit in different camera conventions
-        if self.cfg.camera_coord_conversion is not None:
-            orientation = camera.change_camera_coord_convention(
-                self.cfg.camera_coord_conversion, orientation
+        if self.cfg.camera_convention_conversion is not None:
+            orientation, K = camera.convert_camera_convention(
+                self.cfg.camera_convention_conversion, orientation, K, H, W
             )
 
         c2w = torch.cat([orientation, location], dim=-1)  # camera-to-world transformation

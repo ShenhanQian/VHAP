@@ -361,7 +361,7 @@ class MaskFromFLAME:
         dataset = NeRFDataset(
             root_folder=tgt_folder,
             division=None,
-            camera_coord_conversion=None,
+            camera_convention_conversion=None,
             target_extrinsic_type='w2c',
             use_fg_mask=True,
             use_flame_param=True,

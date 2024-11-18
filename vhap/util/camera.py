@@ -42,19 +42,26 @@ def align_cameras_to_axes(
     return R, T
 
 
-def change_camera_coord_convention(camera_coord_conversion: str, R: torch.Tensor):
-    if camera_coord_conversion is not None:
-        if camera_coord_conversion == "opencv->opengl":
+def convert_camera_convention(camera_convention_conversion: str, R: torch.Tensor, K: torch.Tensor, H: int, W: int):
+    if camera_convention_conversion is not None:
+        if camera_convention_conversion == "opencv->opengl":
             R[:, :3, [1, 2]] *= -1
-        elif camera_coord_conversion == "opencv->pytorch3d":
+            # flip y of the principal point
+            K[..., 1, 2] = H - K[..., 1, 2]
+        elif camera_convention_conversion == "opencv->pytorch3d":
             R[:, :3, [0, 1]] *= -1
-        elif camera_coord_conversion == "opengl->pytorch3d":
+            # flip x and y of the principal point
+            K[..., 0, 2] = W - K[..., 0, 2]
+            K[..., 1, 2] = H - K[..., 1, 2]
+        elif camera_convention_conversion == "opengl->pytorch3d":
             R[:, :3, [0, 2]] *= -1
+            # flip x of the principal point
+            K[..., 0, 2] = W - K[..., 0, 2]
         else:
             raise ValueError(
-                f"Unknown camera coordinate conversion: {camera_coord_conversion}."
+                f"Unknown camera coordinate conversion: {camera_convention_conversion}."
             )
-    return R
+    return R, K
 
 
 def gram_schmidt_orthogonalization(M: torch.tensor):

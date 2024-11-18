@@ -44,7 +44,7 @@ class DataConfig(Config):
     """Whether the cameras parameters are available"""
     align_cameras_to_axes: bool = True
     """Adjust how cameras distribute in the space with a global rotation"""
-    camera_coord_conversion: str = 'opencv->opengl'
+    camera_convention_conversion: str = 'opencv->opengl'
     target_extrinsic_type: Literal['w2c', 'c2w'] = 'w2c'
     n_downsample_rgb: Optional[int] = None
     """Load from downsampled RGB images to save data IO time"""

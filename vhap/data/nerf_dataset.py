@@ -16,7 +16,7 @@ class NeRFDataset(Dataset):
         self,
         root_folder,
         division=None,
-        camera_coord_conversion=None,
+        camera_convention_conversion=None,
         target_extrinsic_type='w2c',
         use_fg_mask=False,
         use_flame_param=False,
@@ -51,7 +51,7 @@ class NeRFDataset(Dataset):
         super().__init__()
         self.root_folder = Path(root_folder)
         self.division = division
-        self.camera_coord_conversion = camera_coord_conversion
+        self.camera_convention_conversion = camera_convention_conversion
         self.target_extrinsic_type = target_extrinsic_type
         self.use_fg_mask = use_fg_mask
         self.use_flame_param = use_flame_param
