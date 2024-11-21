@@ -39,6 +39,7 @@ class NersembleLossWeightConfig(LossWeightConfig):
     always_enable_jawline_landmarks: bool = False  # allow disable_jawline_landmarks in StageConfig to work
     reg_expr: float = 1e-2  # for best expressivness
     reg_tex_tv: Optional[float] = 1e5  # 10x of the base value
+    smooth_expr: float = 0  # for best expressivness
 
 @dataclass()
 class NersembleStageRgbSequentialTrackingConfig(StageRgbSequentialTrackingConfig):

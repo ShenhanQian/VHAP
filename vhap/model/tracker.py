@@ -570,22 +570,23 @@ class FlameTracker:
         # pose smoothness term
         if self.opt_dict['pose'] and 'tracking' in stage:
             E_pose_smooth = self.compute_pose_smooth_energy(frame_idx, stage=='global_tracking')
-            log_dict["pose_smooth"] = E_pose_smooth
+            log_dict["smooth_pose"] = E_pose_smooth
 
         # joint regularization term
         if self.opt_dict['joints']:
+            reg_joint = self.compute_joint_L2_energy(frame_idx)
+            log_dict["reg_joint"] = reg_joint
             if 'tracking' in stage:
                 joint_smooth = self.compute_joint_smooth_energy(frame_idx, stage=='global_tracking')
-                log_dict["joint_smooth"] = joint_smooth
-
-            joint_prior = self.compute_joint_prior_energy(frame_idx)
-            log_dict["joint_prior"] = joint_prior
+                log_dict["smooth_joint"] = joint_smooth
 
         # expression regularization
         if self.opt_dict['expr']:
-            expr = self.to_batch(self.expr, indices)
-            reg_expr = (expr / std_expr) ** 2
+            reg_expr = (self.expr[frame_idx] / std_expr) ** 2
             log_dict["reg_expr"] = self.cfg.w.reg_expr * reg_expr.mean()
+            if 'tracking' in stage:
+                expr_smooth = self.compute_expr_smooth_energy(frame_idx, stage=='global_tracking')
+                log_dict["smooth_expr"] = expr_smooth
 
         # shape regularization
         if self.opt_dict['shape']:
@@ -602,15 +603,6 @@ class FlameTracker:
             # texture map
             if self.cfg.model.tex_extra:
                 if self.cfg.model.residual_tex:
-                    if self.cfg.w.reg_tex_res is not None:
-                        reg_tex_res = self.tex_extra ** 2
-                        # reg_tex_res = self.tex_extra.abs()  # L1 loss can create noise textures
-
-                        # if len(self.cfg.model.occluded) > 0:
-                        #     mask = (~self.flame_uvmask.get_uvmask_by_region(self.cfg.model.occluded)).float()[None, ...]
-                        #     reg_tex_res *= mask
-                        log_dict["reg_tex_res"] = self.cfg.w.reg_tex_res * reg_tex_res.mean()
-                    
                     if self.cfg.w.reg_tex_tv is not None:
                         tex = self.get_albedo()[0]  # (3, H, W)
                         tv_y = (tex[..., :-1, :] - tex[..., 1:, :]) ** 2
@@ -738,7 +730,22 @@ class FlameTracker:
         E_joint_smooth += ((self.eyes_pose[[idx]] - self.eyes_pose[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_eyes
         return E_joint_smooth
     
-    def compute_joint_prior_energy(self, frame_idx):
+    def compute_expr_smooth_energy(self, frame_idx, use_next_frame=False):
+        """
+        Regularizes the expression of the flame head model to be temporally smooth
+        """
+        idx = frame_idx
+        idx_prev = np.clip(idx - 1, 0, self.n_timesteps - 1)
+        if use_next_frame:
+            idx_next = np.clip(idx + 1, 0, self.n_timesteps - 1)
+            ref_indices = [idx_prev, idx_next]
+        else:
+            ref_indices = [idx_prev]
+
+        E_expr_smooth = ((self.expr[[idx]] - self.expr[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_expr
+        return E_expr_smooth
+    
+    def compute_joint_L2_energy(self, frame_idx):
         """
         Regularizes the joints of the flame head model towards neutral joint locations
         """
@@ -767,7 +774,7 @@ class FlameTracker:
                 # penalize the difference between the two eyes
                 diff += ((self.eyes_pose[[frame_idx], :3] - self.eyes_pose[[frame_idx], 3:]) ** 2).mean()
 
-            E_joint_prior += diff * self.cfg.w[f"prior_{name}"]
+            E_joint_prior += diff * self.cfg.w[f"reg_{name}"]
         return E_joint_prior
 
     def compute_laplacian_smoothing_loss(self, verts, offset_verts):

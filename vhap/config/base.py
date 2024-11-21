@@ -128,24 +128,30 @@ class LossWeightConfig(Config):
 
     photo: Optional[float] = 30.
 
+    # L2 regularization
     reg_shape: float = 3e-1
+    reg_neck: float = 3e-1
+    reg_jaw: float = 3e-1
+    reg_eyes: float = 3e-2
     reg_expr: float = 3e-2
-    reg_tex_pca: float = 1e-4  # will make it hard to model hair color when too high
-    
-    reg_tex_res: Optional[float] = None  # 1e2 (when w/o reg_var)
-    """Regularize the residual texture map"""
+
+    # regularize the texture map
     reg_tex_res_clusters: Optional[float] = 1e1
     """Regularize the residual texture map inside each texture cluster"""
     reg_tex_res_for: tuple[str, ...] = ("sclerae", "teeth")
     """Regularize the residual texture map for the clusters specified"""
     reg_tex_tv: Optional[float] = 1e4  # important to split regions apart
     """Regularize the total variation of the texture map"""
+    reg_tex_pca: float = 1e-4  # will make it hard to model hair color when too high
+    """Regularize the pca texture map (not effective when model.tex_painted is True)"""
 
+    # regularize the lighting
     reg_light: Optional[float] = None
     """Regularize lighting parameters"""
     reg_diffuse: Optional[float] = 1e2
     """Regularize lighting parameters by the diffuse term"""
 
+    # L2 regularization for static_offset
     reg_offset: Optional[float] = 3e2
     """Regularize the norm of offsets"""
     reg_offset_relax_coef: float = 1.
@@ -153,6 +159,7 @@ class LossWeightConfig(Config):
     reg_offset_relax_for: tuple[str, ...] = ("hair", "ears")
     """Relax the offset loss for the regions specified"""
 
+    # laplacian regularization for static_offset
     reg_offset_lap: Optional[float] = 1e6
     """Regularize the difference of laplacian coordinate caused by offsets"""
     reg_offset_lap_relax_coef: float = 0.1
@@ -160,6 +167,7 @@ class LossWeightConfig(Config):
     reg_offset_lap_relax_for: tuple[str, ...] = ("hair", "ears")
     """Relax the offset loss for the regions specified"""
 
+    # local rigidity regularization for static_offset
     reg_offset_rigid: Optional[float] = 3e2
     """Regularize the the offsets to be as-rigid-as-possible"""
     reg_offset_rigid_for: tuple[str, ...] = ("left_ear", "right_ear", "neck", "left_eye", "right_eye", "lips_tight")
@@ -171,24 +179,19 @@ class LossWeightConfig(Config):
     blur_iter: int = 0
     """The number of iterations for blurring vertex weights"""
     
+    # temporal smoothness
     smooth_trans: float = 3e2
     """global translation"""
     smooth_rot: float = 3e1
     """global rotation"""
-
     smooth_neck: float = 3e1
     """neck joint"""
     smooth_jaw: float = 1e-1
     """jaw joint"""
     smooth_eyes: float = 0
     """eyes joints"""
-
-    prior_neck: float = 3e-1
-    """Regularize the neck joint towards neutral"""
-    prior_jaw: float = 3e-1
-    """Regularize the jaw joint towards neutral"""
-    prior_eyes: float = 3e-2
-    """Regularize the eyes joints towards neutral"""
+    smooth_expr: float = 1e0
+    """expression"""
     
 
 @dataclass()
