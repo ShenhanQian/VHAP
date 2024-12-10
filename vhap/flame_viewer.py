@@ -6,6 +6,7 @@ import time
 import dearpygui.dearpygui as dpg
 import numpy as np
 import torch
+import PIL.Image
 
 from vhap.util.camera import OrbitCamera
 from vhap.model.flame import FlameHead
@@ -19,6 +20,8 @@ class Config:
     """FLAME model configuration"""
     param_path: Optional[Path] = None
     """Path to the npz file for FLAME parameters"""
+    tex_path: Optional[Path] = None
+    """Path to the texture image"""
     W: int = 1024
     """GUI width"""
     H: int = 1024
@@ -31,6 +34,8 @@ class Config:
     """default GUI background color"""
     use_opengl: bool = False
     """use OpenGL or CUDA rasterizer"""
+    shade_smooth: bool = True
+    """smooth shading or flat shading"""
 
 
 class FlameViewer:
@@ -38,7 +43,7 @@ class FlameViewer:
         self.cfg = cfg  # shared with the trainer's cfg to support in-place modification of rendering parameters.
 
         # flame model
-        self.flame_model = FlameHead(cfg.model.n_shape, cfg.model.n_expr, add_teeth=True)
+        self.flame_model = FlameHead(cfg.model.n_shape, cfg.model.n_expr, add_teeth=True).cuda()
         
         # viewer settings
         self.W = cfg.W
@@ -56,7 +61,7 @@ class FlameViewer:
         self.drag_button = None
 
         # rendering settings
-        self.mesh_renderer = NVDiffRenderer(use_opengl=cfg.use_opengl, lighting_space='camera')
+        self.mesh_renderer = NVDiffRenderer(use_opengl=cfg.use_opengl, lighting_space='camera', shade_smooth=cfg.shade_smooth)
         self.num_timesteps = 1
         self.timestep = 0
 
@@ -253,18 +258,18 @@ class FlameViewer:
         N = flame_param['expr'].shape[0]
 
         self.verts, self.verts_cano = self.flame_model(
-            flame_param['shape'][None, ...].expand(N, -1),
-            flame_param['expr'],
-            flame_param['rotation'],
-            flame_param['neck_pose'],
-            flame_param['jaw_pose'],
-            flame_param['eyes_pose'],
-            flame_param['translation'],
+            flame_param['shape'][None, ...].expand(N, -1).cuda(),
+            flame_param['expr'].cuda(),
+            flame_param['rotation'].cuda(),
+            flame_param['neck_pose'].cuda(),
+            flame_param['jaw_pose'].cuda(),
+            flame_param['eyes_pose'].cuda(),
+            flame_param['translation'].cuda(),
             zero_centered_at_root_node=False,
             return_landmarks=False,
             return_verts_cano=True,
-            static_offset=flame_param['static_offset'],
-            # dynamic_offset=flame_param['dynamic_offset'],
+            static_offset=flame_param['static_offset'].cuda(),
+            # dynamic_offset=flame_param['dynamic_offset'].cuda(),
         )
 
         self.num_timesteps = N
@@ -283,15 +288,27 @@ class FlameViewer:
         return Cam
 
     def run(self):
-        if self.cfg.param_path is not None:
-            if self.cfg.param_path.exists():
-                self.flame_param = dict(np.load(self.cfg.param_path))
-                for k, v in self.flame_param.items():
-                    if v.dtype in [np.float64, np.float32]:
-                        self.flame_param[k] = torch.from_numpy(v).float()
-                self.forward_flame(self.flame_param)
-            else:
-                raise FileNotFoundError(f'{self.cfg.param_path} does not exist.')
+        assert self.cfg.param_path is not None, 'param_path must be provided.'
+        assert self.cfg.param_path.exists(), f'{self.cfg.param_path} does not exist.'
+        self.flame_param = dict(np.load(self.cfg.param_path))
+        for k, v in self.flame_param.items():
+            if v.dtype in [np.float64, np.float32]:
+                self.flame_param[k] = torch.from_numpy(v).float()
+        self.forward_flame(self.flame_param)
+
+        # tex_path
+        if self.cfg.tex_path is not None:
+            assert self.cfg.tex_path.exists(), f'{self.cfg.tex_path} does not exist.'
+            # load the texture image with PIL and turn into pytorch tensor
+            tex = np.array(PIL.Image.open(self.cfg.tex_path)) / 255.
+            self.tex = torch.tensor(tex, dtype=torch.float32).permute(2, 0, 1)[None].cuda()
+
+            self.verts_uv = self.flame_model.verts_uvs.clone()
+            self.verts_uv[:, 1] = 1 - self.verts_uv[:, 1]
+
+            self.faces_uv = self.flame_model.textures_idx.int()
+
+            self.lights = self.flame_param['lights'].cuda()[None]
         
         while dpg.is_dearpygui_running():
 
@@ -302,9 +319,16 @@ class FlameViewer:
                     RT = torch.from_numpy(self.cam.world_view_transform).cuda()[None]
                     K = torch.from_numpy(self.cam.intrinsics).cuda()[None]
                     image_size = self.cam.image_height, self.cam.image_width
-                    verts = self.verts[[self.timestep]].cuda()
-                    faces = self.flame_model.faces.cuda()
-                    out_dict = self.mesh_renderer.render_without_texture(verts, faces, RT, K, image_size, self.cfg.background_color)
+                    verts = self.verts[[self.timestep]]
+                    faces = self.flame_model.faces
+                    tex = self.tex if hasattr(self, 'tex') else None
+                    lights = self.lights if hasattr(self, 'lights') else None
+
+                    out_dict = self.mesh_renderer.render_rgba_vis(
+                        verts, faces, RT, K, image_size, self.cfg.background_color,
+                        verts_uv=self.verts_uv, faces_uv=self.faces_uv, tex=tex,
+                        lights=lights,
+                    )
 
                     rgba_mesh = out_dict['rgba'].squeeze(0).permute(2, 0, 1)  # (C, W, H)
                     rgb_mesh = rgba_mesh[:3, :, :]

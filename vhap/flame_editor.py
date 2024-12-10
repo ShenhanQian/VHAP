@@ -31,6 +31,8 @@ class Config:
     """default GUI background color"""
     use_opengl: bool = False
     """use OpenGL or CUDA rasterizer"""
+    shade_smooth: bool = True
+    """smooth shading or flat shading"""
 
 
 class FlameViewer:
@@ -64,7 +66,7 @@ class FlameViewer:
         self.drag_button = None
 
         # rendering settings
-        self.mesh_renderer = NVDiffRenderer(use_opengl=cfg.use_opengl, lighting_space='camera')
+        self.mesh_renderer = NVDiffRenderer(use_opengl=cfg.use_opengl, lighting_space='camera', shade_smooth=cfg.shade_smooth)
 
         self.define_gui()
 
@@ -343,7 +345,7 @@ class FlameViewer:
                         vid = self.flame_model.mask.get_vid_except_region(self.selected_regions)
                         v_color[..., vid, :] *= 0.3
                     
-                    out_dict = self.mesh_renderer.render_v_color(verts, v_color, faces, RT, K, image_size, self.cfg.background_color)
+                    out_dict = self.mesh_renderer.render_rgba_vis(verts, faces, RT, K, image_size, self.cfg.background_color, v_color=v_color)
                     
                     rgba_mesh = out_dict['rgba'].squeeze(0).permute(2, 0, 1)  # (C, W, H)
                     rgb_mesh = rgba_mesh[:3, :, :]

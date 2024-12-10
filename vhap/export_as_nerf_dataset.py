@@ -433,7 +433,7 @@ class MaskFromFLAME:
 
     def get_mask(self, verts, RT, K, h, w):
         faces = self.flame_model.faces.cuda()
-        out_dict = self.mesh_renderer.render_without_texture(verts, faces, RT, K, (h, w))
+        out_dict = self.mesh_renderer.render_rgba_vis(verts, faces, RT, K, (h, w))
 
         rgba_mesh = out_dict['rgba'].squeeze(0)  # (H, W, C)
         mask_mesh = rgba_mesh[..., 3]  # (H, W)

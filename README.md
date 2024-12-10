@@ -110,8 +110,13 @@ python vhap/flame_editor.py
 We also provide a FLAME viewer for you to interact with a tracked sequence.
 
 ```shell
-python vhap/flame_viewer.py --param_path output/nersemble/074_EMO-1_v16_DS4_wBg_staticOffset/2024-09-09_15-49-02/tracked_flame_params_30.npz
+python vhap/flame_viewer.py \
+--param_path output/nersemble/074_EMO-1_v16_DS4_wBg_staticOffset/2024-09-09_15-49-02/tracked_flame_params_30.npz \
 ```
+
+Optional, you can enable colored rendering by specifying a texture image with `--tex_path`.
+
+For both viewers, you can switch to flat shading with `--no-shade-smooth`.
 
 <div align="center"> 
   <img src="asset/flame_editor.png" width=49%>

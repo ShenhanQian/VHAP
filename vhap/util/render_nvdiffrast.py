@@ -62,6 +62,7 @@ class NVDiffRenderer(torch.nn.Module):
             disturb_rate_fg: Optional[float] = 0.5,
             disturb_rate_bg: Optional[float] = 0.5,
             fid2cid: Optional[torch.Tensor] = None,
+            shade_smooth: bool = True,
         ):
         super().__init__()
         self.backend = 'nvdiffrast'
@@ -69,6 +70,7 @@ class NVDiffRenderer(torch.nn.Module):
         self.lighting_space = lighting_space
         self.disturb_rate_fg = disturb_rate_fg
         self.disturb_rate_bg = disturb_rate_bg
+        self.shade_smooth = shade_smooth
         self.glctx = dr.RasterizeGLContext() if use_opengl else dr.RasterizeCudaContext()
         self.fragment_cache = None
 
@@ -349,7 +351,7 @@ class NVDiffRenderer(torch.nn.Module):
         align_texture_except_fid=None, align_boundary_except_vid=None, enable_disturbance=False,
     ):
         """
-        Renders flame RGBA images
+        Renders flame RGBA images (for photometric optimization)
         """
 
         rast_out = rast_dict["rast_out"]
@@ -476,11 +478,12 @@ class NVDiffRenderer(torch.nn.Module):
         })
         return out_dict
     
-    def render_without_texture(
+    def render_rgba_vis(
         self, verts, faces, RT, K, image_size, background_color=[1., 1., 1.],
+        v_color=None, verts_uv=None, faces_uv=None, tex=None, lights=None,
     ):
         """
-        Renders meshes into RGBA images
+        Renders meshes into RGBA images (for visualization)
         """
 
         verts_camera_ = self.world_to_camera(verts, RT)
@@ -494,15 +497,38 @@ class NVDiffRenderer(torch.nn.Module):
         face_id = torch.clamp(rast_out[..., -1:].long() - 1, 0)  # (B, W, H, 1)
         W, H = face_id.shape[1:3]
 
-        face_normals = self.compute_face_normals(verts_camera, faces)  # (B, F, 3)
-        face_normals_ = face_normals[:, None, None, :, :].expand(-1, W, H, -1, -1)  # (B, 1, 1, F, 3)
-        face_id_ = face_id[:, :, :, None].expand(-1, -1, -1, -1, 3)  # (B, W, H, 1, 1)
-        normal = torch.gather(face_normals_, -2, face_id_).squeeze(-2) # (B, W, H, 3)
+        if self.shade_smooth:
+            if  self.lighting_space == 'world':
+                v_normal = self.compute_v_normals(verts, faces)
+            elif  self.lighting_space == 'camera':
+                v_normal = self.compute_v_normals(verts_camera, faces)
+            else:
+                raise NotImplementedError(f"Unknown lighting space: {self.lighting_space}")
 
-        albedo = torch.ones_like(normal)
+            normal, _ = dr.interpolate(v_normal, rast_out, faces)
+            normal = V.safe_normalize(normal)
+        else:
+            face_normals = self.compute_face_normals(verts_camera, faces)  # (B, F, 3)
+            face_normals_ = face_normals[:, None, None, :, :].expand(-1, W, H, -1, -1)  # (B, 1, 1, F, 3)
+            face_id_ = face_id[:, :, :, None].expand(-1, -1, -1, -1, 3)  # (B, W, H, 1, 1)
+            normal = torch.gather(face_normals_, -2, face_id_).squeeze(-2) # (B, W, H, 3)
+
+        if verts_uv is not None and faces_uv is not None and tex is not None:
+            texc, texd = dr.interpolate(verts_uv[None, ...], rast_out, faces_uv, rast_db=rast_out_db, diff_attrs='all')
+            tex = tex.permute(0, 2, 3, 1).contiguous()  # (N, T, T, 4)
+            albedo = dr.texture(tex, texc, texd, filter_mode='linear-mipmap-linear', max_mip_level=None)
+        elif v_color is not None:
+            v_attr = [v_color]
+            v_attr = torch.cat(v_attr, dim=-1)
+            attr, _ = dr.interpolate(v_attr, rast_out, faces)
+            albedo = attr[..., :3]
+        else:
+            albedo = torch.ones_like(normal)
         
         # ---- shading ----
-        diffuse = self.shade(normal)
+        if lights is not None:
+            self.lighting_type = 'SH'
+        diffuse = self.shade(normal, lights)
 
         rgb = albedo * diffuse
         alpha = fg_mask.float()
@@ -533,67 +559,4 @@ class NVDiffRenderer(torch.nn.Module):
             'diffuse': diffuse.flip(1),
             'rgba': rgba_aa.flip(1),
             'verts_clip': verts_clip,
-        }
-
-    def render_v_color(
-        self, verts, v_color, faces, RT, K, image_size, background_color=[1., 1., 1.],
-    ):
-        """
-        Renders meshes into RGBA images
-        """
-
-        verts_camera_ = self.world_to_camera(verts, RT)
-        verts_camera = verts_camera_[..., :3]
-        verts_clip = self.camera_to_clip(verts_camera_, K, image_size)
-        tri = faces.int()
-        rast_out, rast_out_db = dr.rasterize(self.glctx, verts_clip, tri, image_size)
-
-        faces = faces.int()
-        fg_mask = torch.clamp(rast_out[..., -1:], 0, 1).bool()
-        face_id = torch.clamp(rast_out[..., -1:].long() - 1, 0)  # (B, W, H, 1)
-        W, H = face_id.shape[1:3]
-
-        face_normals = self.compute_face_normals(verts_camera, faces)  # (B, F, 3)
-        face_normals_ = face_normals[:, None, None, :, :].expand(-1, W, H, -1, -1)  # (B, 1, 1, F, 3)
-        face_id_ = face_id[:, :, :, None].expand(-1, -1, -1, -1, 3)  # (B, W, H, 1, 1)
-        normal = torch.gather(face_normals_, -2, face_id_).squeeze(-2) # (B, W, H, 3)
-
-        albedo = torch.ones_like(normal)
-
-        v_attr = [v_color]
-        v_attr = torch.cat(v_attr, dim=-1)
-        attr, _ = dr.interpolate(v_attr, rast_out, faces)
-        albedo = attr[..., :3]
-        
-        # ---- shading ----
-        diffuse = self.shade(normal)
-
-        rgb = albedo * diffuse
-        alpha = fg_mask.float()
-        rgba = torch.cat([rgb, alpha], dim=-1)
-
-        # ---- background ----
-        if isinstance(background_color, list) or isinstance(background_color, tuple):
-            """Background as a constant color"""
-            rgba_bg = torch.tensor(list(background_color) + [0]).to(rgba).expand_as(rgba)  # RGBA
-        elif isinstance(background_color, torch.Tensor):
-            """Background as a image"""
-            rgba_bg = background_color
-            rgba_bg = torch.cat([rgba_bg, torch.zeros_like(rgba_bg[..., :1])], dim=-1)  # RGBA
-        else:
-            raise ValueError(f"Unknown background type: {type(background_color)}")
-        rgba_bg = rgba_bg.flip(1)  # opengl camera has y-axis up, needs flipping
-        
-        normal = torch.where(fg_mask, normal, rgba_bg[..., :3])
-        diffuse = torch.where(fg_mask, diffuse, rgba_bg[..., :3])
-        rgba = torch.where(fg_mask, rgba, rgba_bg)
-
-        # ---- AA on both RGB and alpha channels ----
-        rgba_aa = dr.antialias(rgba, rast_out, verts_clip, faces.int())
-        
-        return {
-            'albedo': albedo.flip(1),
-            'normal': normal.flip(1),
-            'diffuse': diffuse.flip(1),
-            'rgba': rgba_aa.flip(1),
         }
