@@ -1,4 +1,4 @@
-# Versatile Head Alignment with Adaptive Appearance Priors
+# VHAP: Versatile Head Alignment with Adaptive Appearance Priors
 
 <div align="center"> 
   <img src="asset/teaser.gif">
@@ -128,8 +128,8 @@ For both viewers, you can switch to flat shading with `--no-shade-smooth`.
 Please kindly cite our repository and preceding paper if you find our software or algorithm useful for your research.
 
 ```bibtex
-@article{qian2024versatile,
-  title   = "Versatile Head Alignment with Adaptive Appearance Priors",
+@misc{qian2024versatile,
+  title   = "VHAP: Versatile Head Alignment with Adaptive Appearance Priors",
   author  = "Qian, Shenhan",
   year    = "2024",
   month   = "September",
