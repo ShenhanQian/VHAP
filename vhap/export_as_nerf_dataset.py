@@ -349,8 +349,8 @@ class TrackedFLAMEDatasetWriter:
         write_data(path2data)
 
 class MaskFromFLAME:
-    def __init__(self, cfg_model: ModelConfig, tgt_folder, background_color: str) -> None:
-        background_color = self.cfg_data.background_color if background_color is None else background_color
+    def __init__(self, cfg_data: DataConfig, cfg_model: ModelConfig, tgt_folder, background_color: str) -> None:
+        background_color = cfg_data.background_color if background_color is None else background_color
         if background_color == 'white':
             self.background_tensor = torch.tensor([255, 255, 255]).byte()
         elif background_color == 'black':
@@ -645,7 +645,7 @@ def main(
     flame_dataset_writer.write()
 
     if create_mask_from_mesh:
-        mask_generator = MaskFromFLAME(cfg.model, tgt_folder, background_color)
+        mask_generator = MaskFromFLAME(cfg.data, cfg.model, tgt_folder, background_color)
         mask_generator.write()
 
     split_json(tgt_folder)
