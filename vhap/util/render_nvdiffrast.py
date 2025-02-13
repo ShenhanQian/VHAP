@@ -127,7 +127,7 @@ class NVDiffRenderer(torch.nn.Module):
         Output:
             proj = [[
                     [2*fx/w, 0.0,     (w - 2*cx)/w,             0.0                     ],
-                    [0.0,    2*fy/h, (h - 2*cy)/h,             0.0                     ],
+                    [0.0,    2*fy/h, -(h - 2*cy)/h,             0.0                     ],
                     [0.0,    0.0,     -(far+near) / (far-near), -2*far*near / (far-near)],
                     [0.0,    0.0,     -1.0,                     0.0                     ]
                 ]
@@ -151,7 +151,7 @@ class NVDiffRenderer(torch.nn.Module):
         proj[:, 0, 0]  = fx * 2 / w 
         proj[:, 1, 1]  = fy * 2 / h
         proj[:, 0, 2]  = (w - 2 * cx) / w
-        proj[:, 1, 2]  = (h - 2 * cy) / h
+        proj[:, 1, 2]  = -(h - 2 * cy) / h
         proj[:, 2, 2]  = -(far+near) / (far-near)
         proj[:, 2, 3]  = -2*far*near / (far-near)
         proj[:, 3, 2]  = -1
