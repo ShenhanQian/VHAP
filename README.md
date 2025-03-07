@@ -128,12 +128,13 @@ For both viewers, you can switch to flat shading with `--no-shade-smooth`.
 Please kindly cite our repository and preceding paper if you find our software or algorithm useful for your research.
 
 ```bibtex
-@misc{qian2024versatile,
-  title   = "VHAP: Versatile Head Alignment with Adaptive Appearance Priors",
-  author  = "Qian, Shenhan",
-  year    = "2024",
-  month   = "September",
-  url     = "https://github.com/ShenhanQian/VHAP"
+@misc{qian2024vhap,
+  title={VHAP: Versatile Head Alignment with Adaptive Appearance Priors},
+  author={Qian, Shenhan},
+  year={2024},
+  month={sep},
+  doi={10.5281/zenodo.14988309}
+  url={https://github.com/ShenhanQian/VHAP}
 }
 ```
 
