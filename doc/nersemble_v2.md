@@ -1,4 +1,4 @@
-## For NeRSemble Dataset
+## For NeRSemble Dataset V2 
 
 <div align="center"> 
   <img src="../asset/nersemble_074_EMO-1.gif" width=100%>
@@ -13,7 +13,7 @@ SUBJECT="074"
 SEQUENCE="EMO-1"
 
 python vhap/preprocess_video.py \
---input data/nersemble/${SUBJECT}/${SEQUENCE}* \
+--input data/nersemble_v2/${SUBJECT}/sequences/${SEQUENCE}* \
 --downsample_scales 2 4 \
 --matting_method background_matting_v2
 ```
@@ -30,9 +30,9 @@ This step automatically detects facial landmarks if absent, then begin FLAME tra
 ```shell
 SUBJECT="074"
 SEQUENCE="EMO-1"
-TRACK_OUTPUT_FOLDER="output/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
+TRACK_OUTPUT_FOLDER="output/nersemble_v2/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
 
-python vhap/track_nersemble.py --data.root_folder "data/nersemble" \
+python vhap/track_nersemble_v2.py --data.root_folder "data/nersemble_v2" \
 --exp.output_folder $TRACK_OUTPUT_FOLDER \
 --data.subject $SUBJECT --data.sequence $SEQUENCE \
 --data.n_downsample_rgb 4
@@ -49,6 +49,10 @@ Optional arguments
 > [!NOTE]
 > We use all 16 views for the optimization, but we only visualize 3 views for efficiency.
 
+> [!WARNING]
+> NeRSemble Dataset V2 comes with improved color calibration. However, this may considerably slow down image loading, particularly at full resolution.
+
+
 ### 3. Export tracking results into a NeRF-style dataset
 
 Given the tracked FLAME parameters from the above step, you can export the results to form a NeRF/3DGS style sequence, consisting of image folders and a `transforms.json`.
@@ -56,8 +60,8 @@ Given the tracked FLAME parameters from the above step, you can export the resul
 ```shell
 SUBJECT="074"
 SEQUENCE="EMO-1"
-TRACK_OUTPUT_FOLDER="output/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
-EXPORT_OUTPUT_FOLDER="export/nersemble/${SUBJECT}_${SEQUENCE}_v16_DS4_whiteBg_staticOffset_maskBelowLine"
+TRACK_OUTPUT_FOLDER="output/nersemble_v2/${SUBJECT}_${SEQUENCE}_v16_DS4_wBg_staticOffset"
+EXPORT_OUTPUT_FOLDER="export/nersemble_v2/${SUBJECT}_${SEQUENCE}_v16_DS4_whiteBg_staticOffset_maskBelowLine"
 
 python vhap/export_as_nerf_dataset.py \
 --src_folder ${TRACK_OUTPUT_FOLDER} \
@@ -71,18 +75,18 @@ SUBJECT="074"
 
 python vhap/combine_nerf_datasets.py \
 --src_folders \
-  export/nersemble/${SUBJECT}_EMO-1_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EMO-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EMO-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EMO-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-5_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-8_v16_DS4_whiteBg_staticOffset_maskBelowLine \
-  export/nersemble/${SUBJECT}_EXP-9_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EMO-1_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EMO-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EMO-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EMO-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-2_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-3_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-4_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-5_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-8_v16_DS4_whiteBg_staticOffset_maskBelowLine \
+  export/nersemble_v2/${SUBJECT}_EXP-9_v16_DS4_whiteBg_staticOffset_maskBelowLine \
 --tgt_folder \
-  export/nersemble/UNION10_${SUBJECT}_EMO1234EXP234589_v16_DS4_whiteBg_staticOffset_maskBelowLine
+  export/nersemble_v2/UNION10_${SUBJECT}_EMO1234EXP234589_v16_DS4_whiteBg_staticOffset_maskBelowLine
 ```
 
 > [!NOTE]

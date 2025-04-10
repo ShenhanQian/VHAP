@@ -67,19 +67,26 @@ Our code relies on FLAME. Please download assets from the [official website](htt
 
 To get access to [NeRSemble](https://tobias-kirschstein.github.io/nersemble/) dataset, please request via the [Google Form](https://forms.gle/rYRoGNh2ed51TDWX9). The directory structure is expected to be like [this](https://github.com/ShenhanQian/VHAP/blob/c9ea660c6c6719110eca5ffdaf9029a2596cc5ca/vhap/data/nersemble_dataset.py#L32-L54).
 
+> [!NOTE]
+> The NeRSemble dataset has been updated to Version 2. Its folder structure and color correction algorithm differ from those in Version 1, so please be careful not to confuse the two.
+
 #### Monocular
 
 We use monocular video sequences following [INSTA](https://zielon.github.io/insta/). You can download raw videos from [LRZ](https://syncandshare.lrz.de/getlink/fiJE46wKrG6oTVZ16CUmMr/VHAP).
 
 ## Usage
 
-### [For Monocular Videos](doc/monocular.md)
+### Monocular
+[For Monocular Videos](doc/monocular.md)
 
 <div align="center"> 
   <img src="asset/monocular_person_0004.gif" width=100%>
 </div>
 
-### [For NeRSemble Dataset](doc/nersemble.md)
+### Multiview
+[For NeRSemble Dataset](doc/nersemble.md)
+
+[For NeRSemble Dataset V2](doc/nersemble_v2.md)
 
 <div align="center"> 
   <img src="asset/nersemble_038_EMO-1.gif" width=100%>
@@ -128,12 +135,13 @@ For both viewers, you can switch to flat shading with `--no-shade-smooth`.
 Please kindly cite our repository and preceding paper if you find our software or algorithm useful for your research.
 
 ```bibtex
-@misc{qian2024versatile,
-  title   = "VHAP: Versatile Head Alignment with Adaptive Appearance Priors",
-  author  = "Qian, Shenhan",
-  year    = "2024",
-  month   = "September",
-  url     = "https://github.com/ShenhanQian/VHAP"
+@misc{qian2024vhap,
+  title={VHAP: Versatile Head Alignment with Adaptive Appearance Priors},
+  author={Qian, Shenhan},
+  year={2024},
+  month={sep},
+  doi={10.5281/zenodo.14988309}
+  url={https://github.com/ShenhanQian/VHAP}
 }
 ```
 

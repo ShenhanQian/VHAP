@@ -153,7 +153,7 @@ def main(
         background_folder: Path=Path('../../BACKGROUND'),
     ):
     if not input.exists():
-        matched_paths = list(input.parent.glob(f"{input.name}*"))
+        matched_paths = list(input.parent.glob(f"{input.name}"))
         if len(matched_paths) == 0:
             raise FileNotFoundError(f"Cannot find the directory: {input}")
         elif len(matched_paths) == 1:
@@ -169,10 +169,11 @@ def main(
     elif input.is_dir():
         # if input is a directory, assume all contained videos are synchronized multiview of the same scene
         print(f'Processing directory: {input}')
-        videos = list(input.glob('cam_*.mp4'))
+        videos = list(input.glob('cam_*.mp4')) + list(input.glob('images/cam_*.mp4'))
         image_dir = input / 'images'
     else:
         raise ValueError(f"Input should be a video file or a directory containing video files: {input}")
+    assert len(videos) > 0, f'No video files found in {input}'
 
     # extract frames
     for i, video_path in enumerate(videos):
@@ -187,6 +188,8 @@ def main(
         robust_video_matting(image_dir)
     elif matting_method == 'background_matting_v2':
         background_matting_v2(image_dir, background_folder=background_folder)
+    elif matting_method is not None:
+        raise ValueError(f'Unknown matting method: {matting_method}')
 
 
 if __name__ == '__main__':

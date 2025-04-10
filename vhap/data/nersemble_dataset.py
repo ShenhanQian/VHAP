@@ -27,31 +27,31 @@ class NeRSembleDataset(VideoDataset):
         batchify_all_views: bool = False,
     ):
         """
-        Args:
-            root_folder: Path to dataset with the following directory layout
-                <root_folder>/
-                |---camera_params/
-                |   |---<subject>/
-                |       |---camera_params.json
-                |
-                |---color_correction/
-                |   |---<subject>/
-                |       |---<camera_id>.npy
-                |
-                |---<subject>/
-                    |---<sequence>/
-                        |---images/
-                        |   |---cam_<camera_id>_<timestep_id>.jpg
-                        |
-                        |---alpha_maps/
-                        |   |---cam_<camera_id>_<timestep_id>.png
-                        |
-                        |---landmark2d/
-                                |---face-alignment/
-                                |    |---<camera_id>.npz
-                                |
-                                |---STAR/
-                                     |---<camera_id>.npz
+        Folder layout for NeRSemble dataset:
+
+            <root_folder>/
+            |---camera_params/
+            |   |---<subject>/
+            |       |---camera_params.json
+            |
+            |---color_correction/
+            |   |---<subject>/
+            |       |---<camera_id>.npy
+            |
+            |---<subject>/
+                |---<sequence>/
+                    |---images/
+                    |   |---cam_<camera_id>_<timestep_id>.jpg
+                    |
+                    |---alpha_maps/
+                    |   |---cam_<camera_id>_<timestep_id>.png
+                    |
+                    |---landmark2d/
+                            |---face-alignment/
+                            |    |---<camera_id>.npz
+                            |
+                            |---STAR/
+                                    |---<camera_id>.npz
         """
         self.cfg = cfg
         assert cfg.subject != "", "Please specify the subject name"
@@ -61,6 +61,7 @@ class NeRSembleDataset(VideoDataset):
             img_to_tensor=img_to_tensor,
             batchify_all_views=batchify_all_views,
         )
+        self.load_color_correction()
     
     def match_sequences(self):
         logger.info(f"Subject: {self.cfg.subject}, sequence: {self.cfg.sequence}")
@@ -71,10 +72,12 @@ class NeRSembleDataset(VideoDataset):
         self.properties['rgb']['cam_id_prefix'] = "cam_"
         self.properties['alpha_map']['cam_id_prefix'] = "cam_"
     
-    def load_camera_params(self):
-        load_path = self.cfg.root_folder / "camera_params" / self.cfg.subject / "camera_params.json"
-        assert load_path.exists()
-        param = json.load(open(load_path))
+    def load_camera_params(self, camera_params_path=None):
+        if camera_params_path is None:
+            camera_params_path = self.cfg.root_folder / "camera_params" / self.cfg.subject / "camera_params.json"
+        
+        assert camera_params_path.exists()
+        param = json.load(open(camera_params_path))
 
         K = torch.Tensor(param["intrinsics"])
 
@@ -119,7 +122,16 @@ class NeRSembleDataset(VideoDataset):
         self.camera_params = {}
         for i, camera_id in enumerate(self.camera_ids):
             self.camera_params[camera_id] = {"intrinsic": K, "extrinsic": extrinsic[i]}
+    
+    def load_color_correction(self):
+        if self.cfg.use_color_correction:
+            self.color_correction = {}
 
+            for camera_id in self.camera_ids:
+                color_correction_path = self.cfg.root_folder / 'color_correction' / self.cfg.subject / f'{camera_id}.npy'
+                assert color_correction_path.exists(), f"Color correction file not found: {color_correction_path}"
+                self.color_correction[camera_id] = np.load(color_correction_path)
+            
     def filter_division(self, division):
         if division is not None:
             cam_for_train = [8, 7, 9, 4, 10, 5, 13, 2, 12, 1, 14, 0]
@@ -146,14 +158,16 @@ class NeRSembleDataset(VideoDataset):
             logger.info(f"division: {division}")
     
     def apply_transforms(self, item):
+        item = self.apply_color_correction(item)
+        item = super().apply_transforms(item)
+        return item
+    
+    def apply_color_correction(self, item):
         if self.cfg.use_color_correction:
-            color_correction_path = self.cfg.root_folder / 'color_correction' / self.cfg.subject / f'{item["camera_id"]}.npy'
-            affine_color_transform = np.load(color_correction_path)
+            affine_color_transform = self.color_correction[item["camera_id"]]
             rgb = item["rgb"] / 255
             rgb = rgb @ affine_color_transform[:3, :3] + affine_color_transform[np.newaxis, :3, 3]
             item["rgb"] = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
-
-        super().apply_transforms(item)
         return item
 
 

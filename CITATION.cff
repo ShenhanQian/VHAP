@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Qian"
+  given-names: "Shenhan"
+  orcid: "https://orcid.org/0000-0003-0416-7548"
+title: "VHAP: Versatile Head Alignment with Adaptive Appearance Priors"
+version: 0.0.3
+doi: 10.5281/zenodo.14988309
+date-released: 2024-09-05
+url: "https://github.com/ShenhanQian/VHAP"
