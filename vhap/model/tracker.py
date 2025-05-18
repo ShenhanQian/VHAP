@@ -1387,15 +1387,17 @@ class GlobalTracker(FlameTracker):
                 detector = LandmarkDetectorFA()
                 detector.annotate_landmarks(dataloader, add_iris=False)
         elif cfg.data.landmark_source == 'star':
-            from vhap.util.landmark_detector_star import LandmarkDetectorSTAR
+            from vhap.util.landmark_detector_star import LandmarkDetectorSTAR, STAR_detect_dataset_parallel
             
             if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR", -1).exists():
                 # LandmarkDetector only supports a batch_size of 1
                 dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
                 os.umask(0o002)
-                detector = LandmarkDetectorSTAR()
-                detector.annotate_landmarks(dataloader)
+                # detector = LandmarkDetectorSTAR()
+                # detector.annotate_landmarks(dataloader)
+
+                STAR_detect_dataset_parallel(dataset, n_jobs=cfg.data.star_landmark_detector_n_jobs)
         else:
             raise ValueError(f"Unknown landmark source: {cfg.data.landmark_source}")
     

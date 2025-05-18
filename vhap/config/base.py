@@ -54,6 +54,7 @@ class DataConfig(Config):
     use_alpha_map: bool = False
     use_landmark: bool = True
     landmark_source: Optional[Literal['face-alignment', 'star']] = "star"
+    star_landmark_detector_n_jobs: int = 32
 
 
 @dataclass()
