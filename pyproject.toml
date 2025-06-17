@@ -34,7 +34,6 @@ dependencies = [
     "pandas",  # for STAR
     "gdown",  # for STAR
     "face-alignment",
-    "face-detection-tflite",  # for face-alignment
     "pytorch3d@git+https://github.com/facebookresearch/pytorch3d.git",
     "dearpygui",
     "joblib"

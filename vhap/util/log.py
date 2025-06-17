@@ -12,6 +12,8 @@ import sys
 from datetime import datetime
 import atexit
 from pathlib import Path
+import contextlib
+import joblib
 
 
 def _colored(msg, color):
@@ -86,3 +88,20 @@ def get_logger(name, level=logging.DEBUG, root=False, log_dir=None):
             logger.addHandler(file_handler)
 
     return logger
+
+
+@contextlib.contextmanager
+def tqdm_joblib(tqdm_object):
+    """Context manager to patch joblib to report into tqdm progress bar given as argument"""
+    class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_object.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old_batch_callback = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
+    try:
+        yield tqdm_object
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old_batch_callback
+        tqdm_object.close()

@@ -1,11 +1,13 @@
-#
-# Toyota Motor Europe NV/SA and its affiliated companies retain all intellectual
-# property and proprietary rights in and to this software and related documentation.
-# Any commercial use, reproduction, disclosure or distribution of this software and
-# related documentation without an express license agreement from Toyota Motor Europe NV/SA
+# 
+# Toyota Motor Europe NV/SA and its affiliated companies retain all intellectual 
+# property and proprietary rights in and to this software and related documentation. 
+# Any commercial use, reproduction, disclosure or distribution of this software and 
+# related documentation without an express license agreement from Toyota Motor Europe NV/SA 
 # is strictly prohibited.
 #
 
+import os
+import sys
 from collections import defaultdict
 from tqdm import tqdm
 import copy
@@ -14,17 +16,14 @@ import torch
 import math
 import cv2
 import numpy as np
+from torch.utils.data import DataLoader
 import dlib
-from pathlib import Path
-
-import contextlib
-import joblib
 from joblib import Parallel, delayed
 
 from star.lib import utility
 from star.asset import predictor_path, model_path
 
-from vhap.util.log import get_logger
+from vhap.util.log import get_logger, tqdm_joblib
 
 logger = get_logger(__name__)
 
@@ -223,6 +222,9 @@ class LandmarkDetectorSTAR:
     def __init__(
         self,
     ):
+        logger.info("Initialize Landmark Detector (STAR)...")
+        # 68 facial landmark detector
+
         self.detector = dlib.get_frontal_face_detector()
         self.shape_predictor = dlib.shape_predictor(predictor_path)
 
@@ -270,158 +272,102 @@ class LandmarkDetectorSTAR:
 
         return bbox, lmks
 
-    def detect_dataset(self, dataloader):
-        """
-        Annotates each frame with 68 facial landmarks
-        :return: dict mapping frame number to landmarks numpy array and the same thing for bboxes
-        """
-        logger.info("Initialize Landmark Detector (STAR)...")
-        # 68 facial landmark detector
-
-        landmarks = {}
-        bboxes = {}
-
-        logger.info("Begin annotating landmarks...")
-        for item in tqdm(dataloader):
-            timestep_id = item["timestep_id"][0]
-            camera_id = item["camera_id"][0]
-
-            logger.info(
-                f"Annotate facial landmarks for timestep: {timestep_id}, camera: {camera_id}"
-            )
-            img = item["rgb"][0].numpy()
-
-            bbox, lmks = self.detect_single_image(img)
-            if len(bbox) == 0:
-                logger.error(
-                    f"No bbox found for frame: {timestep_id}, camera: {camera_id}. Setting landmarks to all -1."
-                )
-
-            if camera_id not in landmarks:
-                landmarks[camera_id] = {}
-            if camera_id not in bboxes:
-                bboxes[camera_id] = {}
-            landmarks[camera_id][timestep_id] = lmks
-            bboxes[camera_id][timestep_id] = bbox
-        return landmarks, bboxes
-
-    def annotate_landmarks(self, dataloader):
-        """
-        Annotates each frame with landmarks for face and iris. Assumes frames have been extracted
-        :return:
-        """
-        lmks_face, bboxes_faces = self.detect_dataset(dataloader)
-
-        # construct final json
-        for camera_id, lmk_face_camera in lmks_face.items():
-            bounding_box = []
-            face_landmark_2d = []
-            for timestep_id in lmk_face_camera.keys():
-                bounding_box.append(bboxes_faces[camera_id][timestep_id][None])
-                face_landmark_2d.append(lmks_face[camera_id][timestep_id][None])
-
-            lmk_dict = {
-                "bounding_box": bounding_box,
-                "face_landmark_2d": face_landmark_2d,
-            }
-
-            for k, v in lmk_dict.items():
-                if len(v) > 0:
-                    lmk_dict[k] = np.concatenate(v, axis=0)
-            out_path = dataloader.dataset.get_property_path(
-                "landmark2d/STAR", camera_id=camera_id
-            )
-
-
-@contextlib.contextmanager
-def tqdm_joblib(tqdm_object):
-    """Context manager to patch joblib to report into tqdm progress bar given as argument"""
-    class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
-        def __call__(self, *args, **kwargs):
-            tqdm_object.update(n=self.batch_size)
-            return super().__call__(*args, **kwargs)
-
-    old_batch_callback = joblib.parallel.BatchCompletionCallBack
-    joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
-    try:
-        yield tqdm_object
-    finally:
-        joblib.parallel.BatchCompletionCallBack = old_batch_callback
-        tqdm_object.close()
-
-
-def STAR_detect_dataset_parallel(dataset, n_jobs=8):
+def detect_dataset(dataset):
     """
     Annotates each frame with 68 facial landmarks
     :return: dict mapping frame number to landmarks numpy array and the same thing for bboxes
     """
-    logger.info("Initialize Landmark Detector (STAR)...")
-    # 68 facial landmark detector
+    detector = LandmarkDetectorSTAR()
 
-    def run_shard(shard_idx, num_shards):
+    landmarks = {}
+    bboxes = {}
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
+    for item in tqdm(dataloader):
+        timestep_id = item["timestep_id"][0]
+        camera_id = item["camera_id"][0]
 
-        detector = LandmarkDetectorSTAR()
-
-        landmarks = {}
-        bboxes = {}
-
-        item_inds = list(range(shard_idx, len(dataset), num_shards))
-
-        logger.info("Begin annotating landmarks...")
-        import sys
-        sys.stdout.flush()
-        
-        for item_idx in tqdm(item_inds):
-            item = dataset[item_idx]
-            if item is None:
-                bbox = np.zeros(5) - 1
-                lmks = np.zeros([68, 3]) - 1
-                continue
-                
-            timestep_id = item["timestep_id"]
-            camera_id = item["camera_id"]
-
-            logger.info(
-                f"Annotate facial landmarks for timestep: {timestep_id}, camera: {camera_id}"
-            )
-            # import sys
-            # sys.stdout.flush()
-            img = item["rgb"]
-
-            bbox, lmks = detector.detect_single_image(img)
-            if len(bbox) == 0:
-                logger.error(
-                    f"No bbox found for frame: {timestep_id}, camera: {camera_id}. Setting landmarks to all -1."
-                )
-                import sys
-                sys.stdout.flush()
-                continue
-
-            if camera_id not in landmarks:
-                landmarks[camera_id] = {}
-            if camera_id not in bboxes:
-                bboxes[camera_id] = {}
-            landmarks[camera_id][timestep_id] = lmks
-            bboxes[camera_id][timestep_id] = bbox
-        return landmarks, bboxes
-    
-    with tqdm_joblib(tqdm(desc="Progress", 
-                          total=len(dataset))) as progress_bar:
-        out = Parallel(n_jobs=n_jobs)(
-            delayed(run_shard)(shard_idx, n_jobs) for shard_idx in range(n_jobs)
+        logger.info(
+            f"Annotate facial landmarks for timestep: {timestep_id}, camera: {camera_id}"
         )
+        img = item["rgb"][0].numpy()
+
+        bbox, lmks = detector.detect_single_image(img)
+        if len(bbox) == 0:
+            logger.error(
+                f"No bbox found for frame: {timestep_id}, camera: {camera_id}. Setting landmarks to all -1."
+            )
+
+        if camera_id not in landmarks:
+            landmarks[camera_id] = {}
+        if camera_id not in bboxes:
+            bboxes[camera_id] = {}
+        landmarks[camera_id][timestep_id] = lmks
+        bboxes[camera_id][timestep_id] = bbox
+    return landmarks, bboxes
+    
+
+def detect_dataset_chunk(dataset, chunk_idx, num_chunks):
+    detector = LandmarkDetectorSTAR()
+
+    landmarks = {}
+    bboxes = {}
+    item_inds = list(range(chunk_idx, len(dataset), num_chunks))
+    for item_idx in tqdm(item_inds):
+        item = dataset[item_idx]
+        if item is None:
+            bbox = np.zeros(5) - 1
+            lmks = np.zeros([68, 3]) - 1
+            continue
+            
+        timestep_id = item["timestep_id"]
+        camera_id = item["camera_id"]
+
+        logger.info(
+            f"Annotate facial landmarks for timestep: {timestep_id}, camera: {camera_id}"
+        )
+        sys.stdout.flush()
+        img = item["rgb"]
+
+        bbox, lmks = detector.detect_single_image(img)
+        if len(bbox) == 0:
+            logger.error(
+                f"No bbox found for frame: {timestep_id}, camera: {camera_id}. Setting landmarks to all -1."
+            )
+            sys.stdout.flush()
+            continue
+
+        if camera_id not in landmarks:
+            landmarks[camera_id] = {}
+        if camera_id not in bboxes:
+            bboxes[camera_id] = {}
+        landmarks[camera_id][timestep_id] = lmks
+        bboxes[camera_id][timestep_id] = bbox
+    return landmarks, bboxes
+
+    
+def annotate_landmarks(dataset, n_jobs=1):
+    """
+    Annotates each frame with landmarks for face and iris. Assumes frames have been extracted
+    :return:
+    """
+    os.umask(0o002)
+
+    if n_jobs > 1:
+        with tqdm_joblib(tqdm(desc="Progress", total=len(dataset))) as progress_bar:
+            out = Parallel(n_jobs=n_jobs)(
+                delayed(detect_dataset_chunk)(dataset, chunk_idx, n_jobs) for chunk_idx in range(n_jobs)
+            )
         
-    landmarks = defaultdict(dict)
-    bboxes = defaultdict(dict)
-    for landmarks_shard, bboxes_shard in out:
-        for camera_id in landmarks_shard.keys():
-            landmarks[camera_id].update(landmarks_shard[camera_id])
-            bboxes[camera_id].update(bboxes_shard[camera_id])
-    # return landmarks, bboxes
+        landmarks = defaultdict(dict)
+        bboxes = defaultdict(dict)
+        for landmarks_chunk, bboxes_chunk in out:
+            for camera_id in landmarks_chunk.keys():
+                landmarks[camera_id].update(landmarks_chunk[camera_id])
+                bboxes[camera_id].update(bboxes_chunk[camera_id])
+    else:
+        landmarks, bboxes = detect_dataset(dataset)
 
-    # annotate_landmarks
-
-    # construct final json
+    # construct final npz
     for camera_id, lmk_face_camera in landmarks.items():
         bounding_box = []
         face_landmark_2d = []

@@ -1373,31 +1373,16 @@ class GlobalTracker(FlameTracker):
     def detect_landmarks(self, cfg):
         cfg_data = deepcopy(cfg.data)
         cfg_data.use_landmark = False
-        dataset = import_module(cfg.data._target)(
-            cfg=cfg_data,
-        )
+        dataset = import_module(cfg.data._target)(cfg=cfg_data)
+
         if cfg.data.landmark_source == 'face-alignment':
-            from vhap.util.landmark_detector_fa import LandmarkDetectorFA
-
             if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment", -1).exists():
-                # LandmarkDetector only supports a batch_size of 1
-                dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
-
-                os.umask(0o002)
-                detector = LandmarkDetectorFA()
-                detector.annotate_landmarks(dataloader, add_iris=False)
+                from vhap.util.landmark_detector_fa import annotate_landmarks
+                annotate_landmarks(dataset, n_jobs=cfg.data.landmark_detector_njobs)
         elif cfg.data.landmark_source == 'star':
-            from vhap.util.landmark_detector_star import LandmarkDetectorSTAR, STAR_detect_dataset_parallel
-            
             if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/STAR", -1).exists():
-                # LandmarkDetector only supports a batch_size of 1
-                dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
-
-                os.umask(0o002)
-                # detector = LandmarkDetectorSTAR()
-                # detector.annotate_landmarks(dataloader)
-
-                STAR_detect_dataset_parallel(dataset, n_jobs=cfg.data.star_landmark_detector_n_jobs)
+                from vhap.util.landmark_detector_star import annotate_landmarks
+                annotate_landmarks(dataset, n_jobs=cfg.data.landmark_detector_njobs)
         else:
             raise ValueError(f"Unknown landmark source: {cfg.data.landmark_source}")
     
