@@ -21,7 +21,7 @@ dependencies = [
     "pillow",
     "opencv-python",
     "ffmpeg-python",
-    "colour",
+    "colour-science",
     "torch",  # manually install to avoid CUDA version mismatch
     "torchvision",  # manually install to avoid CUDA version mismatch
     "tensorboard",
