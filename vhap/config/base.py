@@ -320,8 +320,10 @@ class BaseTrackingConfig(Config):
 
     begin_stage: Optional[str] = None
     """Begin from the specified stage for debugging"""
-    begin_frame_idx: int = 0
+    begin_timestep: int = 0
     """Begin from the specified frame index for debugging"""
+    batch_size: Optional[int] = 16
+    """Number of frames in a batch. Only effective when batchify_all_views is False for the dataset."""
     async_func: bool = True
     """Allow asynchronous function calls for speed up"""
     device: Literal['cuda', 'cpu'] = 'cuda'

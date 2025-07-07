@@ -4,6 +4,9 @@
   <img src="asset/teaser.gif">
 </div>
 
+## Update
+[2025-07-08] Achieving ~3x acceleration via batchifying frames for monocular videos (`batch_size`=16). Use lower `batch_size` in case of drifting, and set it to 1 for the original behavior.
+
 ## TL;DR
 
 - A photometric optimization pipeline based on differentiable mesh rasterization, applied to human head alignment.

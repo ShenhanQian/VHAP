@@ -81,7 +81,6 @@ if __name__ == "__main__":
     dataset = import_module(cfg._target)(
         cfg=cfg,
         img_to_tensor=False,
-        batchify_all_views=True,
     )
 
     print(len(dataset))

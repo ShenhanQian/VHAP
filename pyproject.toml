@@ -10,7 +10,7 @@ include = ["vhap/**/*.py"]
 
 [project]
 name = "VHAP"
-version = "0.0.4"
+version = "0.1.0"
 requires-python = ">=3.9"
 dependencies = [
   "tyro",

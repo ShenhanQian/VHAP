@@ -73,10 +73,6 @@ class FlameTracker:
                 disturb_rate_bg=self.cfg.render.disturb_rate_bg,
                 fid2cid=self.flame.mask.fid2cid,
             )
-        elif self.cfg.render.backend == 'pytorch3d':
-            from vhap.util.render_pytorch3d import PyTorch3DRenderer
-
-            self.render = PyTorch3DRenderer()
         else:
             raise NotImplementedError(f"Unknown renderer backend: {self.cfg.render.backend}")
     
@@ -141,41 +137,6 @@ class FlameTracker:
 
     def clear_cache(self):
         self.render.clear_cache()
-
-    def get_current_frame(self, frame_idx, include_keyframes=False):
-        """
-        Creates a single item batch from the frame data at index frame_idx in the dataset.
-        If include_keyframes option is set, keyframe data will be appended to the batch. However,
-        it is guaranteed that the frame data belonging to frame_idx is at position 0
-        :param frame_idx:
-        :return:
-        """
-        indices = [frame_idx]
-        if include_keyframes:
-            indices += self.cfg.exp.keyframes
-
-        samples = []
-        for idx in indices:
-            sample = self.dataset.getitem_by_timestep(idx)
-            # sample["timestep_index"] = idx
-
-            # for k, v in sample.items():
-            #     if isinstance(v, torch.Tensor):
-            #         sample[k] = v[None, ...].to(self.device)
-
-            samples.append(sample)
-
-        # if also keyframes have been loaded, stack all data
-        sample = {}
-        for k, v in samples[0].items():
-            values = [s[k] for s in samples]
-            if isinstance(v, torch.Tensor):
-                values = torch.cat(values, dim=0)
-            sample[k] = values
-
-        if "lmk2d_iris" in sample:
-            sample["lmk2d"] = torch.cat([sample["lmk2d"], sample["lmk2d_iris"]], dim=1)
-        return sample
 
     def fill_cam_params_into_sample(self, sample):
         """
@@ -249,66 +210,28 @@ class FlameTracker:
         optim = torch.optim.Adam(param_groups, lr=default_lr * lr_scale)
         return optim
 
-    def initialize_frame(self, frame_idx):
-        """
-        Initializes parameters of frame frame_idx
-        :param frame_idx:
-        :return:
-        """
-        if frame_idx > 0:
-            self.initialize_from_previous(frame_idx)
-
-    def initialize_from_previous(self, frame_idx):
-        """
-        Initializes the flame parameters with the optimized ones from the previous frame
-        :param frame_idx:
-        :return:
-        """
-        if frame_idx == 0:
-            return
-
-        param_list = [
-            self.expr,
-            self.neck_pose,
-            self.jaw_pose,
-            self.translation,
-            self.rotation,
-            self.eyes_pose,
-        ]
-
-        for param in param_list:
-            param[frame_idx].data = param[frame_idx - 1].detach().clone().data
-
-    def select_frame_indices(self, frame_idx, include_keyframes):
-        indices = [frame_idx]
-        if include_keyframes:
-            indices += self.cfg.exp.keyframes
-        return indices
-
-    def forward_flame(self, frame_idx, include_keyframes):
+    def forward_flame(self, timesteps):
         """
         Evaluates the flame model using the given parameters
         :param flame_params:
         :return:
         """
-        indices = self.select_frame_indices(frame_idx, include_keyframes)
-
-        dynamic_offset = self.to_batch(self.dynamic_offset, indices) if self.cfg.model.use_dynamic_offset else None
+        dynamic_offset = self.dynamic_offset[timesteps] if self.cfg.model.use_dynamic_offset else None
 
         ret = self.flame(
-            self.shape[None, ...].expand(len(indices), -1),
-            self.to_batch(self.expr, indices),
-            self.to_batch(self.rotation, indices),
-            self.to_batch(self.neck_pose, indices),
-            self.to_batch(self.jaw_pose, indices),
-            self.to_batch(self.eyes_pose, indices),
-            self.to_batch(self.translation, indices),
+            self.shape[None, ...].expand(len(timesteps), -1),
+            self.expr[timesteps],
+            self.rotation[timesteps],
+            self.neck_pose[timesteps],
+            self.jaw_pose[timesteps],
+            self.eyes_pose[timesteps],
+            self.translation[timesteps],
             return_verts_cano=True,
             static_offset=self.static_offset,
             dynamic_offset=dynamic_offset,
         )
         verts, verts_cano, lmks = ret[0], ret[1], ret[2]
-        albedos = self.get_albedo().expand(len(indices), -1, -1, -1)
+        albedos = self.get_albedo().expand(len(timesteps), -1, -1, -1)
         return verts, verts_cano, lmks, albedos
     
     def get_base_texture(self):
@@ -474,7 +397,6 @@ class FlameTracker:
         rast_dict,
         step_i=None,
         stage=None,
-        include_keyframes=False,
     ):
         """
         Computes the dense photometric energy
@@ -555,7 +477,7 @@ class FlameTracker:
         # photo_loss = mask_loss
         return photo_loss, results_dict
     
-    def compute_regularization_energy(self, result_dict, verts, verts_cano, lmks, albedos, frame_idx, include_keyframes, stage):
+    def compute_regularization_energy(self, result_dict, verts, verts_cano, lmks, albedos, timesteps, stage):
         """
         Computes the energy term that penalizes strong deviations from the flame base model
         """
@@ -565,27 +487,25 @@ class FlameTracker:
         std_expr = 1
         std_shape = 1
 
-        indices = self.select_frame_indices(frame_idx, include_keyframes)
-
         # pose smoothness term
         if self.opt_dict['pose'] and 'tracking' in stage:
-            E_pose_smooth = self.compute_pose_smooth_energy(frame_idx, stage=='global_tracking')
+            E_pose_smooth = self.compute_pose_smooth_energy(timesteps)
             log_dict["smooth_pose"] = E_pose_smooth
 
         # joint regularization term
         if self.opt_dict['joints']:
-            reg_joint = self.compute_joint_L2_energy(frame_idx)
+            reg_joint = self.compute_joint_L2_energy(timesteps)
             log_dict["reg_joint"] = reg_joint
             if 'tracking' in stage:
-                joint_smooth = self.compute_joint_smooth_energy(frame_idx, stage=='global_tracking')
+                joint_smooth = self.compute_joint_smooth_energy(timesteps)
                 log_dict["smooth_joint"] = joint_smooth
 
         # expression regularization
         if self.opt_dict['expr']:
-            reg_expr = (self.expr[frame_idx] / std_expr) ** 2
+            reg_expr = (self.expr[timesteps] / std_expr) ** 2
             log_dict["reg_expr"] = self.cfg.w.reg_expr * reg_expr.mean()
             if 'tracking' in stage:
-                expr_smooth = self.compute_expr_smooth_energy(frame_idx, stage=='global_tracking')
+                expr_smooth = self.compute_expr_smooth_energy(timesteps)
                 log_dict["smooth_expr"] = expr_smooth
 
         # shape regularization
@@ -636,7 +556,7 @@ class FlameTracker:
                 if self.static_offset is not None:
                     offset += self.static_offset
                 if self.dynamic_offset is not None:
-                    offset += self.to_batch(self.dynamic_offset, indices)
+                    offset += self.dynamic_offset[timesteps]
 
                 if self.cfg.w.reg_offset_lap is not None:
                     # laplacian loss
@@ -663,7 +583,7 @@ class FlameTracker:
                             scale_factor=self.cfg.w.reg_offset_relax_coef,
                             region=self.cfg.w.reg_offset_relax_for,
                         )
-                        reg_offset *= w
+                        reg_offset = w * reg_offset
                     log_dict["reg_offset"] = self.cfg.w.reg_offset * reg_offset.mean()
                 
                 if self.cfg.w.reg_offset_rigid is not None:
@@ -675,12 +595,9 @@ class FlameTracker:
 
                 if self.cfg.w.reg_offset_dynamic is not None and self.dynamic_offset is not None and self.opt_dict['dynamic_offset']:
                     # The dynamic offset is regularized to be temporally smooth
-                    if frame_idx == 0:
-                        reg_offset_d = torch.zeros_like(self.dynamic_offset[0])
-                        offset_d = self.dynamic_offset[0]
-                    else:
-                        reg_offset_d = torch.stack([self.dynamic_offset[0], self.dynamic_offset[frame_idx - 1]])
-                        offset_d = self.dynamic_offset[frame_idx]
+                    timesteps_prev = np.clip(timesteps - 1, 0, self.n_timesteps - 1)
+                    reg_offset_d = self.dynamic_offset[timesteps_prev]
+                    offset_d = self.dynamic_offset[timesteps]
 
                     reg_offset_dynamic = ((offset_d - reg_offset_d) ** 2).mean()
                     log_dict["reg_offset_dynamic"] = self.cfg.w.reg_offset_dynamic * reg_offset_dynamic
@@ -696,64 +613,49 @@ class FlameTracker:
             weights = M.bmm(weights) / 2
         return weights
     
-    def compute_pose_smooth_energy(self, frame_idx, use_next_frame=False):
+    def compute_pose_smooth_energy(self, timesteps):
         """
         Regularizes the global pose of the flame head model to be temporally smooth
         """
-        idx = frame_idx
+        idx = timesteps
         idx_prev = np.clip(idx - 1, 0, self.n_timesteps - 1)
-        if use_next_frame:
-            idx_next = np.clip(idx + 1, 0, self.n_timesteps - 1)
-            ref_indices = [idx_prev, idx_next]
-        else:
-            ref_indices = [idx_prev]
 
-        E_trans = ((self.translation[[idx]] - self.translation[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_trans
-        E_rot = ((self.rotation[[idx]] - self.rotation[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_rot
+        E_trans = ((self.translation[idx] - self.translation[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_trans
+        E_rot = ((self.rotation[idx] - self.rotation[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_rot
         return E_trans + E_rot
     
-    def compute_joint_smooth_energy(self, frame_idx, use_next_frame=False):
+    def compute_joint_smooth_energy(self, timestep):
         """
         Regularizes the joints of the flame head model to be temporally smooth
         """
-        idx = frame_idx
+        idx = timestep
         idx_prev = np.clip(idx - 1, 0, self.n_timesteps - 1)
-        if use_next_frame:
-            idx_next = np.clip(idx + 1, 0, self.n_timesteps - 1)
-            ref_indices = [idx_prev, idx_next]
-        else:
-            ref_indices = [idx_prev]
 
         E_joint_smooth = 0
-        E_joint_smooth += ((self.neck_pose[[idx]] - self.neck_pose[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_neck
-        E_joint_smooth += ((self.jaw_pose[[idx]] - self.jaw_pose[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_jaw
-        E_joint_smooth += ((self.eyes_pose[[idx]] - self.eyes_pose[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_eyes
+        E_joint_smooth += ((self.neck_pose[idx] - self.neck_pose[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_neck
+        E_joint_smooth += ((self.jaw_pose[idx] - self.jaw_pose[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_jaw
+        E_joint_smooth += ((self.eyes_pose[idx] - self.eyes_pose[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_eyes
         return E_joint_smooth
     
-    def compute_expr_smooth_energy(self, frame_idx, use_next_frame=False):
+    def compute_expr_smooth_energy(self, timestep):
         """
         Regularizes the expression of the flame head model to be temporally smooth
         """
-        idx = frame_idx
+        idx = timestep
         idx_prev = np.clip(idx - 1, 0, self.n_timesteps - 1)
-        if use_next_frame:
-            idx_next = np.clip(idx + 1, 0, self.n_timesteps - 1)
-            ref_indices = [idx_prev, idx_next]
-        else:
-            ref_indices = [idx_prev]
 
-        E_expr_smooth = ((self.expr[[idx]] - self.expr[ref_indices].detach()) ** 2).mean() * self.cfg.w.smooth_expr
+        E_expr_smooth = ((self.expr[idx] - self.expr[idx_prev].detach()) ** 2).mean() * self.cfg.w.smooth_expr
         return E_expr_smooth
     
-    def compute_joint_L2_energy(self, frame_idx):
+    def compute_joint_L2_energy(self, timesteps):
         """
         Regularizes the joints of the flame head model towards neutral joint locations
         """
         poses = [
-            ("neck", self.neck_pose[[frame_idx], :]),
-            ("jaw", self.jaw_pose[[frame_idx], :]),
-            ("eyes", self.eyes_pose[[frame_idx], :3]),
-            ("eyes", self.eyes_pose[[frame_idx], 3:]),
+            ("neck", self.neck_pose[timesteps, :]),
+            ("jaw", self.jaw_pose[timesteps, :]),
+            ("eyes", self.eyes_pose[timesteps, :3]),
+            ("eyes", self.eyes_pose[timesteps, 3:]),
         ]
        
         # Joints should are regularized towards neural
@@ -772,13 +674,14 @@ class FlameTracker:
                 diff += (pose[:, 1:] ** 2).mean() * 3
             elif name == 'eyes':
                 # penalize the difference between the two eyes
-                diff += ((self.eyes_pose[[frame_idx], :3] - self.eyes_pose[[frame_idx], 3:]) ** 2).mean()
+                diff += ((self.eyes_pose[timesteps, :3] - self.eyes_pose[timesteps, 3:]) ** 2).mean()
 
             E_joint_prior += diff * self.cfg.w[f"reg_{name}"]
         return E_joint_prior
 
     def compute_laplacian_smoothing_loss(self, verts, offset_verts):
         L = self.flame.laplacian_matrix[None, ...].detach()  # (1, V, V)
+        L = L.repeat(verts.shape[0], 1, 1)  # (B, V, V)
         basis_lap = L.bmm(verts).detach()  #.norm(dim=-1) * weights
 
         offset_lap = L.bmm(offset_verts)  #.norm(dim=-1) # * weights
@@ -789,16 +692,12 @@ class FlameTracker:
     def compute_energy(
         self,
         sample,
-        frame_idx,
-        include_keyframes=False,
         step_i=None,
         stage=None,
     ):
         """
-        Compute total energy for frame frame_idx
+        Compute total energy
         :param sample:
-        :param frame_idx:
-        :param include_keyframes: if key frames shall be included when predicting the per
         frame energy
         :return: loss, log dict, predicted vertices and landmarks
         """
@@ -806,31 +705,24 @@ class FlameTracker:
 
         gt_rgb = sample["rgb"]
         result_dict = {"gt_rgb": gt_rgb}
+        timesteps = sample["timestep_index"]
 
-        verts, verts_cano, lmks, albedos = self.forward_flame(frame_idx, include_keyframes)
+        verts, verts_cano, lmks, albedos = self.forward_flame(timesteps)
         faces = self.flame.faces
 
-        if isinstance(sample["num_cameras"], list):
-            num_cameras = sample["num_cameras"][0]
-        else:
-            num_cameras = sample["num_cameras"]
-        # albedos = self.repeat_n_times(albedos, num_cameras)  # only needed for pytorch3d renderer
-
         if self.cfg.w.landmark is not None:
-            lmks_n = self.repeat_n_times(lmks, num_cameras)
             if not self.cfg.w.always_enable_jawline_landmarks and stage is not None:
                 disable_jawline_landmarks = self.cfg.pipeline[stage]['disable_jawline_landmarks']
             else:
                 disable_jawline_landmarks = False
-            E_lmk, _result_dict = self.compute_lmk_energy(sample, lmks_n, disable_jawline_landmarks)
+            E_lmk, _result_dict = self.compute_lmk_energy(sample, lmks, disable_jawline_landmarks)
             log_dict["lmk"] = self.cfg.w.landmark * E_lmk
             result_dict.update(_result_dict)
         
         if stage is None or isinstance(self.cfg.pipeline[stage], PhotometricStageConfig):
             if self.cfg.w.photo is not None:
-                verts_n = self.repeat_n_times(verts, num_cameras)
                 rast_dict = self.rasterize_flame(
-                    sample, verts_n, self.flame.faces, train_mode=True
+                    sample, verts, self.flame.faces, train_mode=True
                 )
 
                 photo_energy_func = self.compute_photometric_energy
@@ -842,14 +734,13 @@ class FlameTracker:
                     rast_dict,
                     step_i,
                     stage,
-                    include_keyframes,
                 )
                 result_dict.update(_result_dict)
                 log_dict["photo"] = self.cfg.w.photo * E_photo
         
         if stage is not None:
             _log_dict = self.compute_regularization_energy(
-                result_dict, verts, verts_cano, lmks, albedos, frame_idx, include_keyframes, stage
+                result_dict, verts, verts_cano, lmks, albedos, timesteps, stage
             )
             log_dict.update(_log_dict)
 
@@ -871,7 +762,7 @@ class FlameTracker:
     def log_scalars(
         self, 
         log_dict, 
-        frame_idx, 
+        timestep, 
         session: Literal["train", "eval"] = "train", 
         stage=None,
         frame_step=None, 
@@ -880,7 +771,7 @@ class FlameTracker:
         """
         Logs scalars in log_dict to tensorboard and self.logger
         :param log_dict:
-        :param frame_idx:
+        :param timestep:
         :param step_i:
         :return:
         """
@@ -893,7 +784,7 @@ class FlameTracker:
         if session == "train":
             global_step = self.global_step
         else:
-            global_step = frame_idx
+            global_step = timestep
 
         for k, v in log_dict.items():
             if not k.startswith("decay"):
@@ -904,11 +795,11 @@ class FlameTracker:
         if session == "train":
             assert stage is not None
             if frame_step is not None:
-                msg_prefix = f"[{session}-{stage}] frame {frame_idx} step {frame_step}:  "
+                msg_prefix = f"[{session}-{stage}] timestep {timestep} step {frame_step}:  "
             else:
-                msg_prefix = f"[{session}-{stage}] frame {frame_idx} step {self.global_step}:  "
+                msg_prefix = f"[{session}-{stage}] timestep {timestep} step {self.global_step}:  "
         elif session == "eval":
-            msg_prefix = f"[{session}] frame {frame_idx}:  "
+            msg_prefix = f"[{session}] timestep {timestep}:  "
         self.logger.info(msg_prefix + log_msg)
 
     def save_obj_with_texture(self, vertices, faces, uv_coordinates, uv_indices, albedos, obj_path, mtl_path, texture_path):
@@ -944,7 +835,7 @@ class FlameTracker:
         albedos: torch.tensor,
         output_dict: dict,
         sample: dict,
-        frame_idx: int,
+        timestep: int,
         session: str,
         stage: Optional[str]=None,
         frame_step: int=None,
@@ -955,7 +846,7 @@ class FlameTracker:
         :param verts:
         :param lmks:
         :param sample:
-        :param frame_idx:
+        :param timestep:
         :param frame_step:
         :param show_lmks:
         :param show_overlay:
@@ -965,7 +856,7 @@ class FlameTracker:
         prepare_output_path = partial(
             self.prepare_output_path, 
             session=session, 
-            frame_idx=frame_idx, 
+            timestep=timestep, 
             stage=stage, 
             step=frame_step,
             epoch=epoch,
@@ -995,7 +886,7 @@ class FlameTracker:
         # log_figure = self.visualize_flame_multiview(verts, faces, albedos, sample)
         # self.save_image(
         #     log_figure,
-        #     frame_idx,
+        #     timestep,
         #     folder_name=f"{session}/flame_multiview",
         #     step=frame_step,
         # )
@@ -1003,14 +894,14 @@ class FlameTracker:
         # log_figure = self.visualize_trajectory(sample)
         # self.tb_writer.add_image("translation_trajectory", log_figure, frame_stepd)
         # self.save_image(
-        #     log_figure, frame_idx, folder_name=f"{session}/translation_trajectory", step=frame_step
+        #     log_figure, timestep, folder_name=f"{session}/translation_trajectory", step=frame_step
         # )
 
         toc = time.time() - tic
         if stage is not None:
-            msg_prefix = f"[{session}-{stage}] frame {frame_idx}"
+            msg_prefix = f"[{session}-{stage}] timestep {timestep}"
         else:
-            msg_prefix = f"[{session}] frame {frame_idx}"
+            msg_prefix = f"[{session}] timestep {timestep}"
         if frame_step is not None:
             msg_prefix += f" step {frame_step}"
         self.logger.info(f"{msg_prefix}:  Logging media took {toc:.2f}s")
@@ -1192,9 +1083,9 @@ class FlameTracker:
         self.logger.info("Started Evaluation")
         # vid_frames = []
         photo_loss = []
-        for frame_idx in range(self.n_timesteps):
+        for timestep in range(self.n_timesteps):
 
-            sample = self.get_current_frame(frame_idx, include_keyframes=False)
+            sample = self.dataset.getitem_by_timestep(timestep)
             self.clear_cache()
             self.fill_cam_params_into_sample(sample)
             (
@@ -1205,9 +1096,9 @@ class FlameTracker:
                 lmks,
                 albedos,
                 output_dict,
-            ) = self.compute_energy(sample, frame_idx)
+            ) = self.compute_energy(sample)
 
-            self.log_scalars(log_dict, frame_idx, session="eval")
+            self.log_scalars(log_dict, timestep, session="eval")
             photo_loss.append(log_dict["photo"].item())
 
             if make_visualization:
@@ -1218,14 +1109,14 @@ class FlameTracker:
                     albedos,
                     output_dict,
                     sample,
-                    frame_idx,
+                    timestep,
                     session="eval",
                     epoch=epoch,
                 )
         
         self.tb_writer.add_scalar(f"eval_mean/photo", np.mean(photo_loss), epoch)
 
-    def prepare_output_path(self, session, frame_idx, folder_name, file_type, stage=None, step=None, epoch=None):
+    def prepare_output_path(self, session, timestep, folder_name, file_type, stage=None, step=None, epoch=None):
         if epoch is not None:
             output_folder = self.out_dir / f'{session}_{epoch}' / folder_name
         else:
@@ -1234,9 +1125,9 @@ class FlameTracker:
         
         if stage is not None:
             assert step is not None
-            fname = "frame_{:05d}_{:03d}_{}.{}".format(frame_idx, step, stage, file_type)
+            fname = "frame_{:05d}_{:03d}_{}.{}".format(timestep, step, stage, file_type)
         else:
-            fname = "frame_{:05d}.{}".format(frame_idx, file_type)
+            fname = "frame_{:05d}.{}".format(timestep, file_type)
         return output_folder / fname
 
     # def save_video(self, vid_frames, name):
@@ -1284,7 +1175,7 @@ class FlameTracker:
             self.shape,
             self.expr,
             np.array(self.dataset.timestep_ids),
-            self.frame_idx,
+            self.timestep,
         ]
         if not self.calibrated:
             keys += ["focal_length"]
@@ -1339,7 +1230,7 @@ class GlobalTracker(FlameTracker):
         out_dir = cfg.exp.output_folder / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         out_dir.mkdir(parents=True)
 
-        self.frame_idx = self.cfg.begin_frame_idx
+        self.timestep = self.cfg.begin_timestep
         self.out_dir = out_dir
         self.tb_writer = SummaryWriter(self.out_dir)
         
@@ -1356,7 +1247,6 @@ class GlobalTracker(FlameTracker):
         self.dataset = import_module(cfg.data._target)(
             cfg=cfg.data,
             img_to_tensor=True,
-            batchify_all_views=True,  # important to optimized all views together
         )
         # FlameTracker expects all views of a frame in a batch, which is undertaken by the
         # dataset. Therefore batching is disabled for the dataloader
@@ -1457,16 +1347,16 @@ class GlobalTracker(FlameTracker):
         """
         self.global_step = 0
         
-        # first initialize frame either from calibration or previous frame
-        # with torch.no_grad():
-            # self.initialize_frame(frame_idx)
-
         # sequential optimization of timesteps
         self.logger.info(f"Start sequential tracking FLAME in {self.n_timesteps} frames")
-        dataloader = DataLoader(self.dataset, batch_size=None, shuffle=False, num_workers=4)
+        dataloader = DataLoader(
+            self.dataset, 
+            batch_size=self.cfg.batch_size if not self.dataset.batchify_all_views else None, 
+            shuffle=False, 
+            num_workers=4
+        )
         for sample in dataloader:
-            timestep = sample["timestep_index"][0].item()
-            if timestep == 0:
+            if sample["timestep_index"][0].item() == 0:
                 self.optimize_stage('lmk_init_rigid', sample)
                 self.optimize_stage('lmk_init_all', sample)
                 if self.cfg.exp.photometric:
@@ -1479,13 +1369,18 @@ class GlobalTracker(FlameTracker):
                 self.optimize_stage('rgb_sequential_tracking', sample)
             else:
                 self.optimize_stage('lmk_sequential_tracking', sample)
-            self.initialize_next_timtestep(timestep)
+            self.initialize_next_timtestep(sample["timestep_index"])
         
         self.evaluate(make_visualization=True, epoch=0)
 
         self.logger.info(f"Start global optimization of all frames")
         # global optimization with random sampling
-        dataloader = DataLoader(self.dataset, batch_size=None, shuffle=True, num_workers=4)
+        dataloader = DataLoader(
+            self.dataset, 
+            batch_size=self.cfg.batch_size if not self.dataset.batchify_all_views else None, 
+            shuffle=True, 
+            num_workers=4
+        )
         if self.cfg.exp.photometric:
             self.optimize_stage(stage='rgb_global_tracking', dataloader=dataloader, lr_scale=0.1)
         else:
@@ -1524,7 +1419,6 @@ class GlobalTracker(FlameTracker):
         # compute loss and update parameters
         self.clear_cache()
 
-        timestep_index = sample["timestep_index"][0]
         self.fill_cam_params_into_sample(sample)
         (
             E_total,
@@ -1534,18 +1428,18 @@ class GlobalTracker(FlameTracker):
             lmks,
             albedos,
             output_dict,
-        ) = self.compute_energy(
-            sample, frame_idx=timestep_index, stage=stage,
+        ) = self.compute_energy(sample, stage=stage,
         )
         optimizer.zero_grad()
         E_total.backward()
         optimizer.step()
 
         # log energy terms and visualize
+        timestep = sample["timestep_index"][0]
         if (self.global_step+1) % self.log_interval_scalar == 0:
             self.log_scalars(
                 log_dict, 
-                timestep_index, 
+                timestep, 
                 session="train", 
                 stage=stage, 
                 frame_step=self.global_step, 
@@ -1559,7 +1453,7 @@ class GlobalTracker(FlameTracker):
                 albedos,
                 output_dict,
                 sample,
-                timestep_index, 
+                timestep, 
                 session="train",
                 stage=stage,
                 frame_step=self.global_step,
@@ -1618,13 +1512,18 @@ class GlobalTracker(FlameTracker):
 
         return params
 
-    def initialize_next_timtestep(self, timestep):
-        if timestep < self.n_timesteps - 1:
-            self.translation[timestep + 1].data.copy_(self.translation[timestep])
-            self.rotation[timestep + 1].data.copy_(self.rotation[timestep])
-            self.neck_pose[timestep + 1].data.copy_(self.neck_pose[timestep])
-            self.jaw_pose[timestep + 1].data.copy_(self.jaw_pose[timestep])
-            self.eyes_pose[timestep + 1].data.copy_(self.eyes_pose[timestep])
-            self.expr[timestep + 1].data.copy_(self.expr[timestep])
-            if self.cfg.model.use_dynamic_offset:
-                self.dynamic_offset[timestep + 1].data.copy_(self.dynamic_offset[timestep])
+    def initialize_next_timtestep(self, timesteps):
+        timestep_stride = timesteps[-1].item() - timesteps[0].item() + 1
+
+        t_src = timesteps[-1]
+        for s in range(timestep_stride):
+            t_tgt = t_src + s + 1
+            if t_tgt < self.n_timesteps - 1:
+                self.translation[t_tgt].data.copy_(self.translation[t_src])
+                self.rotation[t_tgt].data.copy_(self.rotation[t_src])
+                self.neck_pose[t_tgt].data.copy_(self.neck_pose[t_src])
+                self.jaw_pose[t_tgt].data.copy_(self.jaw_pose[t_src])
+                self.eyes_pose[t_tgt].data.copy_(self.eyes_pose[t_src])
+                self.expr[t_tgt].data.copy_(self.expr[t_src])
+                if self.cfg.model.use_dynamic_offset:
+                    self.dynamic_offset[t_tgt].data.copy_(self.dynamic_offset[t_src])

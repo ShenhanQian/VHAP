@@ -109,6 +109,8 @@ class NVDiffRenderer(torch.nn.Module):
             mv[..., 3, 3] = 1
         elif RT.shape[-2] == 4:
             mv = RT
+        if proj.shape[0] < mv.shape[0]:
+            proj = proj.expand(mv.shape[0], -1, -1)
         mvp = torch.bmm(proj, mv)
         return mvp
     
@@ -189,6 +191,9 @@ class NVDiffRenderer(torch.nn.Module):
             posw = vtx
         else:
             raise ValueError(f"Expected 3D or 4D points but got: {vtx.shape[-1]}")
+
+        if proj.shape[0] < posw.shape[0]:
+            proj = proj.expand(posw.shape[0], -1, -1)
         return torch.bmm(posw, proj.transpose(-1, -2))
     
     def world_to_clip(self, vtx, RT, K, image_size):

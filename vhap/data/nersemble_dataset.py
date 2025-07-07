@@ -24,7 +24,7 @@ class NeRSembleDataset(VideoDataset):
         self,
         cfg: NersembleDataConfig,
         img_to_tensor: bool = False,
-        batchify_all_views: bool = False,
+        batchify_all_views: bool = True,
     ):
         """
         Folder layout for NeRSemble dataset:
@@ -183,7 +183,6 @@ if __name__ == "__main__":
     dataset = import_module(cfg._target)(
         cfg=cfg,
         img_to_tensor=False,
-        batchify_all_views=True,
     )
 
     print(len(dataset))

@@ -142,10 +142,6 @@ if __name__ == "__main__":
     @dataclass
     class Args:
         root_folder: str
-        subject: str
-        sequence: str
-        use_landmark: bool = False
-        batchify_all_views: bool = False
 
     args = tyro.cli(Args)
 
