@@ -371,7 +371,7 @@ def annotate_landmarks(dataset, n_jobs=1):
     for camera_id, lmk_face_camera in landmarks.items():
         bounding_box = []
         face_landmark_2d = []
-        for timestep_id in lmk_face_camera.keys():
+        for timestep_id in sorted(lmk_face_camera.keys()):
             bounding_box.append(bboxes[camera_id][timestep_id][None])
             face_landmark_2d.append(landmarks[camera_id][timestep_id][None])
 
