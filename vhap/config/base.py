@@ -345,12 +345,15 @@ class BaseTrackingConfig(Config):
                 cfg_stage.align_boundary_except = tuple(list(cfg_stage.align_boundary_except) + list(self.model.occluded))
 
         if self.begin_stage is not None:
-            skip = True
-            for cfg_stage in self.pipeline.__dict__.values():
-                if cfg_stage.__class__.__name__.lower() == self.begin_stage:
-                    skip = False
-                if skip:
+            assert self.begin_stage in self.pipeline.__dict__, f"begin_stage {self.begin_stage} not found in pipeline\n" \
+                f"Available stages: {' '.join(self.pipeline.__dict__.keys())}"
+            for stage, cfg_stage in self.pipeline.__dict__.items():
+                if stage != self.begin_stage:
                     cfg_stage.num_steps = 0
+                    print(f'Skipping stage: {stage}')
+                else:
+                    print(f'Starting stage: {stage}')
+                    break
 
 
 if __name__ == "__main__":
