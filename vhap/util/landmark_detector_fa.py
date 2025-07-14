@@ -181,13 +181,13 @@ def annotate_landmarks(dataset, n_jobs=1):
         for k, v in lmk_dict.items():
             if len(v) > 0:
                 lmk_dict[k] = np.concatenate(v, axis=0)
-    out_path = dataset.get_property_path(
-        "landmark2d/face-alignment", camera_id=camera_id
-    )
-    logger.info(f"Saving landmarks to: {out_path}")
-    if not out_path.parent.exists():
-        out_path.parent.mkdir(parents=True)
-    np.savez(out_path, **lmk_dict)
+        out_path = dataset.get_property_path(
+            "landmark2d/face-alignment", camera_id=camera_id
+        )
+        logger.info(f"Saving landmarks to: {out_path}")
+        if not out_path.parent.exists():
+            out_path.parent.mkdir(parents=True)
+        np.savez(out_path, **lmk_dict)
 
 
 if __name__ == "__main__":
