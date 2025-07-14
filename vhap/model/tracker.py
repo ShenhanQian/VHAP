@@ -1263,7 +1263,7 @@ class GlobalTracker(FlameTracker):
     def detect_landmarks(self, cfg):
         cfg_data = deepcopy(cfg.data)
         cfg_data.use_landmark = False
-        dataset = import_module(cfg.data._target)(cfg=cfg_data)
+        dataset = import_module(cfg.data._target)(cfg=cfg_data, batchify_all_views=False)
 
         if cfg.data.landmark_source == 'face-alignment':
             if not cfg.exp.reuse_landmarks or not dataset.get_property_path("landmark2d/face-alignment", -1).exists():
