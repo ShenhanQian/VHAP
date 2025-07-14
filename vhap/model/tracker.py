@@ -804,7 +804,7 @@ class FlameTracker:
 
     def save_obj_with_texture(self, vertices, faces, uv_coordinates, uv_indices, albedos, obj_path, mtl_path, texture_path):
         # Save the texture image
-        torchvision.utils.save_image(albedos.squeeze(0), texture_path)
+        torchvision.utils.save_image(albedos, texture_path)
 
         # Create the MTL file
         with open(mtl_path, 'w') as f:
@@ -876,11 +876,11 @@ class FlameTracker:
         mtl_path = prepare_output_path(folder_name="mesh", file_type="mtl")
         obj_path = prepare_output_path(folder_name="mesh", file_type="obj")
     
-        vertices = verts.squeeze(0).detach().cpu().numpy()
+        vertices = verts[0].detach().cpu().numpy()
         faces = faces.detach().cpu().numpy()
         uv_coordinates = self.flame.verts_uvs.cpu().numpy()
         uv_indices = self.flame.textures_idx.cpu().numpy()
-        self.save_obj_with_texture(vertices, faces, uv_coordinates, uv_indices, albedos, obj_path, mtl_path, texture_path)
+        self.save_obj_with_texture(vertices, faces, uv_coordinates, uv_indices, albedos[0], obj_path, mtl_path, texture_path)
         """"""
     
         # log_figure = self.visualize_flame_multiview(verts, faces, albedos, sample)
