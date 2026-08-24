@@ -64,7 +64,7 @@ class NeRSembleV2Dataset(NeRSembleDataset):
             ccm = self.color_correction[item["camera_id"]]
             image_corrected = color_correction_Cheung2004_precomputed(image_linear, ccm)
             image_corrected = colour.cctf_encoding(image_corrected)
-            item["rgb"] = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
+            item["rgb"] = (np.clip(image_corrected, 0, 1) * 255).astype(np.uint8)
         return item
 
 
